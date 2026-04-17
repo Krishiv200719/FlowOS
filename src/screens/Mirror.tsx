@@ -63,8 +63,12 @@ export default function Mirror() {
             <path d="M9 16v1" stroke="#333" strokeWidth="1.5" strokeLinecap="round"/>
           </svg>
         </div>
-        <p className="text-lg font-medium text-white">No sessions yet</p>
-        <p className="text-sm text-flow-muted">Complete a focus session to see your Honest Mirror.</p>
+        <p className="text-lg font-medium text-white">No sessions recorded yet</p>
+        <p className="text-sm text-flow-muted text-center max-w-xs">
+          {extensionConnected
+            ? 'Extension is connected. Start a focus session using the FlowOS extension in Chrome.'
+            : 'Install the FlowOS Chrome extension and complete a focus session to see your data here.'}
+        </p>
       </motion.div>
     );
   }

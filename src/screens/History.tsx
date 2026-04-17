@@ -42,8 +42,12 @@ export default function History() {
             <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-1 bg-[#333] rounded-sm" />
           </div>
         </div>
-        <p className="text-lg font-medium text-white">No sessions yet</p>
-        <p className="text-sm text-flow-muted">Complete a focus session using the Chrome extension.</p>
+        <p className="text-lg font-medium text-white">No sessions recorded</p>
+        <p className="text-sm text-flow-muted text-center max-w-xs">
+          {extensionConnected
+            ? 'Extension is connected. Start a focus session from the Chrome extension popup.'
+            : 'Install the FlowOS Chrome extension to start tracking your focus sessions.'}
+        </p>
       </motion.div>
     );
   }

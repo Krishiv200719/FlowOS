@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════
 // FlowOS — Session Context
 // Single source of truth for session data across all screens.
-// Falls back to mock data when extension is not connected.
+// Always uses REAL data from the extension only.
 // ═══════════════════════════════════════════════════════════
 
 import {
@@ -14,7 +14,6 @@ import {
 } from 'react';
 import type { FocusSession } from '../types';
 import { isExtensionConnected, getExtensionSessions } from '../lib/bridge';
-import { mockSessions as MOCK_SESSIONS } from '../data/mockSessions';
 
 interface SessionContextValue {
   sessions: FocusSession[];
@@ -46,21 +45,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         if (extSessions && extSessions.length > 0) {
           extSessions.sort((a, b) => b.startTime - a.startTime);
           setSessions(extSessions);
-          console.log(`[FlowOS] ${extSessions.length} real sessions loaded.`);
+          console.log(`[FlowOS] ${extSessions.length} real sessions loaded from extension.`);
         } else {
-          // Extension connected but no sessions — show mock for demo purposes
-          setSessions(MOCK_SESSIONS);
-          console.log('[FlowOS] Extension connected, no sessions yet — showing mock data.');
+          // Extension connected but no sessions recorded yet
+          setSessions([]);
+          console.log('[FlowOS] Extension connected — no sessions yet.');
         }
       } else {
-        // No extension — always fall back to mock data for demo
-        setSessions(MOCK_SESSIONS);
-        console.log('[FlowOS] No extension detected — using mock demo data.');
+        // Extension not installed / not connected
+        setSessions([]);
+        console.log('[FlowOS] Extension not detected.');
       }
     } catch (err) {
       console.warn('[FlowOS] Bridge error:', err);
-      // On any error, fall back to mock data so the app never goes blank
-      setSessions(MOCK_SESSIONS);
+      setSessions([]);
     } finally {
       setLoading(false);
     }
