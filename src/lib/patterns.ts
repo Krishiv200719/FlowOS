@@ -110,6 +110,95 @@ export function getPeakHours(sessions: FocusSession[]): number[] {
     .map(([hour]) => parseInt(hour));
 }
 
+/**
+ * DATA #2: Compute a compelling local insight from session data — no API call.
+ * Returns the single most dramatic/surprising truth from the sessions.
+ */
+export function getLocalInsight(sessions: FocusSession[]): string {
+  if (sessions.length < 2) return '';
+
+  const morningSessions = sessions.filter((s) => {
+    const h = new Date(s.startTime).getHours();
+    return h >= 6 && h < 12;
+  });
+  const eveningSessions = sessions.filter((s) => {
+    const h = new Date(s.startTime).getHours();
+    return h >= 18;
+  });
+
+  const morningAvg =
+    morningSessions.length > 0
+      ? Math.round(
+          (morningSessions.reduce((sum, s) => sum + s.stats.focusRatio, 0) /
+            morningSessions.length) *
+            100
+        )
+      : null;
+
+  const eveningAvg =
+    eveningSessions.length > 0
+      ? Math.round(
+          (eveningSessions.reduce((sum, s) => sum + s.stats.focusRatio, 0) /
+            eveningSessions.length) *
+            100
+        )
+      : null;
+
+  // Distractor totals
+  const distractorMap: Record<string, { totalSec: number; sessionCount: number }> = {};
+  for (const s of sessions) {
+    for (const d of s.stats.topDistractors) {
+      if (!distractorMap[d.domain]) {
+        distractorMap[d.domain] = { totalSec: 0, sessionCount: 0 };
+      }
+      distractorMap[d.domain].totalSec += d.seconds;
+      distractorMap[d.domain].sessionCount++;
+    }
+  }
+  const sortedDistractors = Object.entries(distractorMap).sort(
+    ([, a], [, b]) => b.totalSec - a.totalSec
+  );
+  const topDistractor = sortedDistractors[0];
+
+  // Avg tab switches
+  const avgTabSwitches = Math.round(
+    sessions.reduce((sum, s) => sum + s.stats.tabSwitches, 0) / sessions.length
+  );
+
+  // Choose most dramatic insight
+  const insights: string[] = [];
+
+  if (morningAvg !== null && eveningAvg !== null && Math.abs(morningAvg - eveningAvg) >= 15) {
+    const delta = morningAvg - eveningAvg;
+    insights.push(
+      delta > 0
+        ? `Your morning sessions average ${morningAvg}% focus. Your evening sessions average ${eveningAvg}%. You are ${delta}% more effective before noon. Same brain. Different hour.`
+        : `Your evening sessions average ${eveningAvg}% focus. Your mornings average ${morningAvg}%. Night mode is your focus mode — ${Math.abs(delta)}% better after 6pm.`
+    );
+  }
+
+  if (topDistractor) {
+    const totalMin = Math.round(topDistractor[1].totalSec / 60);
+    const count = topDistractor[1].sessionCount;
+    insights.push(
+      `${topDistractor[0]} has stolen ${totalMin} minutes from you across ${count} sessions. That's ${(totalMin / 60).toFixed(1)} hours you can't get back.`
+    );
+  }
+
+  insights.push(
+    `You switch tabs an average of ${avgTabSwitches} times per session. Each switch costs you minutes of focus you never see leaving.`
+  );
+
+  // Return the first (most dramatic based on ordering)
+  if (morningAvg !== null && eveningAvg !== null && Math.abs(morningAvg - eveningAvg) >= 15) {
+    return insights[0];
+  }
+  if (topDistractor && topDistractor[1].totalSec > 600) {
+    return insights.find((i) => i.includes(topDistractor[0])) ?? insights[0];
+  }
+  return insights[insights.length - 1];
+}
+
 // ─── Helpers ──────────────────────────────────────────────
 
 function formatHour(h: number): string {

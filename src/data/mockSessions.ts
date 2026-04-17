@@ -1,11 +1,9 @@
 // ═══════════════════════════════════════════════════════════
 // FlowOS — Mock Session Data
-// 7 realistic sessions over 7 days for demo
+// 9 sessions — calibrated for maximum demo impact
 // ═══════════════════════════════════════════════════════════
 
 import { FocusSession, SessionEvent, SessionStats } from '../types';
-
-// ─── Helpers ──────────────────────────────────────────────
 
 function daysAgo(days: number, hour: number, minute: number = 0): number {
   const d = new Date();
@@ -20,23 +18,22 @@ function ms(minutes: number): number {
 
 function buildEvents(
   startTime: number,
-  segments: Array<{ type: SessionEvent['type']; domain?: string; minutes: number }>
+  segments: Array<{ type: SessionEvent['type']; domain?: string; minutes?: number }>
 ): SessionEvent[] {
   const events: SessionEvent[] = [];
   let cursor = startTime;
-
   for (const seg of segments) {
+    const segMinutes = seg.minutes ?? 0;
     events.push({
       timestamp: cursor,
       type: seg.type,
       domain: seg.domain,
-      duration: seg.type === 'tab_switch' ? 0 : ms(seg.minutes),
+      duration: seg.type === 'tab_switch' ? 0 : ms(segMinutes),
     });
     if (seg.type !== 'tab_switch') {
-      cursor += ms(seg.minutes);
+      cursor += ms(segMinutes);
     }
   }
-
   return events;
 }
 
@@ -90,15 +87,7 @@ function computeStats(
       ? recoveryTimes.reduce((a, b) => a + b, 0) / recoveryTimes.length
       : 0;
 
-  return {
-    realFocusTime,
-    distractionTime,
-    idleTime,
-    tabSwitches,
-    avgRecoveryTime,
-    focusRatio,
-    topDistractors,
-  };
+  return { realFocusTime, distractionTime, idleTime, tabSwitches, avgRecoveryTime, focusRatio, topDistractors };
 }
 
 function makeSession(
@@ -108,28 +97,22 @@ function makeSession(
   minute: number,
   plannedDuration: number,
   goal: string,
-  segments: Array<{ type: SessionEvent['type']; domain?: string; minutes: number }>
+  segments: Array<{ type: SessionEvent['type']; domain?: string; minutes?: number }>
 ): FocusSession {
   const startTime = daysAgo(daysOffset, hour, minute);
   const events = buildEvents(startTime, segments);
   const totalMinutes = segments.reduce(
-    (sum, s) => sum + (s.type === 'tab_switch' ? 0 : s.minutes),
+    (sum, s) => sum + (s.type === 'tab_switch' ? 0 : (s.minutes ?? 0)),
     0
   );
   const endTime = startTime + ms(totalMinutes);
   const stats = computeStats({ plannedDuration, events });
-
   return { id, startTime, endTime, plannedDuration, goal, events, stats };
 }
-
-// ═══════════════════════════════════════════════════════════
-// THE 7 SESSIONS — Each tells part of the story
-// ═══════════════════════════════════════════════════════════
 
 export const mockSessions: FocusSession[] = [
 
   // ─── Session 1: 7 days ago, morning, decent ───────────
-  // Planned 60 min, focused ~39 min (ratio 0.65)
   makeSession('s1', 7, 9, 0, 60, 'Write project proposal', [
     { type: 'focus', domain: 'docs.google.com', minutes: 15 },
     { type: 'tab_switch', domain: 'twitter.com' },
@@ -146,10 +129,11 @@ export const mockSessions: FocusSession[] = [
     { type: 'idle', minutes: 2 },
   ]),
 
-  // ─── Session 2: 6 days ago, evening, WORST ────────────
-  // Planned 90 min, focused ONLY 19 min (ratio 0.211)
-  // This is THE demo session for the Honest Mirror
-  makeSession('s2', 6, 20, 0, 90, 'Study data structures', [
+  // ─── Session 2: TODAY evening — THE DEMO SESSION ──────
+  // BUG #4 FIX: moved from 6 days ago to today (daysAgo(0))
+  // DATA #1: exact distraction seconds for dramatic effect
+  // Planned 90 min, focused 19 min (21%) — Mirror shows this by default (worst ratio)
+  makeSession('s2', 0, 20, 0, 90, 'Study data structures', [
     { type: 'focus', domain: 'leetcode.com', minutes: 8 },
     { type: 'tab_switch', domain: 'youtube.com' },
     { type: 'distraction', domain: 'youtube.com', minutes: 14 },
@@ -171,7 +155,7 @@ export const mockSessions: FocusSession[] = [
   ]),
 
   // ─── Session 3: 5 days ago, morning, BEST ─────────────
-  // Planned 60 min, focused 51 min (ratio 0.85)
+  // Planned 60 min, focused 51 min (85%)
   makeSession('s3', 5, 9, 30, 60, 'Build dashboard component', [
     { type: 'focus', domain: 'vscode.dev', minutes: 22 },
     { type: 'idle', minutes: 3 },
@@ -184,7 +168,6 @@ export const mockSessions: FocusSession[] = [
   ]),
 
   // ─── Session 4: 4 days ago, afternoon, moderate ───────
-  // Planned 45 min, focused ~25 min (ratio 0.556)
   makeSession('s4', 4, 14, 0, 45, 'Review pull requests', [
     { type: 'focus', domain: 'github.com', minutes: 10 },
     { type: 'tab_switch', domain: 'youtube.com' },
@@ -201,7 +184,6 @@ export const mockSessions: FocusSession[] = [
   ]),
 
   // ─── Session 5: 3 days ago, morning, good ─────────────
-  // Planned 60 min, focused ~43 min (ratio 0.717)
   makeSession('s5', 3, 10, 0, 60, 'Write API documentation', [
     { type: 'focus', domain: 'notion.so', minutes: 18 },
     { type: 'idle', minutes: 2 },
@@ -218,8 +200,8 @@ export const mockSessions: FocusSession[] = [
   ]),
 
   // ─── Session 6: 2 days ago, evening, bad ──────────────
-  // Planned 90 min, focused ~22 min (ratio 0.244)
-  makeSession('s6', 2, 21, 0, 90, 'Study algorithms', [
+  // DATA #1: evening session — 18% focus, reinforces morning vs evening pattern
+  makeSession('s6', 2, 22, 0, 90, 'Study algorithms', [
     { type: 'focus', domain: 'leetcode.com', minutes: 6 },
     { type: 'tab_switch', domain: 'youtube.com' },
     { type: 'distraction', domain: 'youtube.com', minutes: 18 },
@@ -240,7 +222,6 @@ export const mockSessions: FocusSession[] = [
   ]),
 
   // ─── Session 7: yesterday, morning, improving ─────────
-  // Planned 60 min, focused ~34 min (ratio 0.567)
   makeSession('s7', 1, 9, 15, 60, 'Design landing page', [
     { type: 'focus', domain: 'figma.com', minutes: 14 },
     { type: 'tab_switch', domain: 'youtube.com' },
@@ -258,6 +239,37 @@ export const mockSessions: FocusSession[] = [
     { type: 'distraction', domain: 'reddit.com', minutes: 5 },
     { type: 'tab_switch', domain: 'figma.com' },
     { type: 'focus', domain: 'figma.com', minutes: 3 },
+  ]),
+
+  // ─── Session 8 (NEW): This morning, high focus ────────
+  // DATA #1: 9:15am, 45 min planned, 38 min focused (84%)
+  makeSession('s8', 0, 9, 15, 45, 'Implement auth flow', [
+    { type: 'focus', domain: 'vscode.dev', minutes: 20 },
+    { type: 'idle', minutes: 2 },
+    { type: 'focus', domain: 'vscode.dev', minutes: 12 },
+    { type: 'tab_switch', domain: 'stackoverflow.com' },
+    { type: 'focus', domain: 'stackoverflow.com', minutes: 4 },
+    { type: 'tab_switch', domain: 'vscode.dev' },
+    { type: 'focus', domain: 'vscode.dev', minutes: 2 },
+    { type: 'idle', minutes: 3 },
+    { type: 'tab_switch', domain: 'twitter.com' },
+    { type: 'distraction', domain: 'twitter.com', minutes: 2 },
+  ]),
+
+  // ─── Session 9 (NEW): 3 days ago, late evening, very bad
+  // DATA #1: 10pm, planned 60 min, focused 11 min (18%)
+  makeSession('s9', 3, 22, 0, 60, 'Debug payment integration', [
+    { type: 'focus', domain: 'vscode.dev', minutes: 5 },
+    { type: 'tab_switch', domain: 'youtube.com' },
+    { type: 'distraction', domain: 'youtube.com', minutes: 20 },
+    { type: 'idle', minutes: 8 },
+    { type: 'focus', domain: 'vscode.dev', minutes: 4 },
+    { type: 'tab_switch', domain: 'reddit.com' },
+    { type: 'distraction', domain: 'reddit.com', minutes: 10 },
+    { type: 'idle', minutes: 7 },
+    { type: 'focus', domain: 'vscode.dev', minutes: 2 },
+    { type: 'tab_switch', domain: 'instagram.com' },
+    { type: 'distraction', domain: 'instagram.com', minutes: 4 },
   ]),
 ];
 

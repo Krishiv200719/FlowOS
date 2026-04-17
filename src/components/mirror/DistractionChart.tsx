@@ -6,15 +6,50 @@ interface DistractionChartProps {
   distractionMs: number;
 }
 
-const COLORS = ['#00D46A', '#FF6B35', '#FF3B3B'];
+// DESIGN #4: Custom center label inside donut
+const CenterLabel = ({
+  cx,
+  cy,
+  focusPct,
+}: {
+  cx: number;
+  cy: number;
+  focusPct: number;
+}) => {
+  const color = focusPct < 40 ? '#FF3B3B' : focusPct < 70 ? '#FF6B35' : '#00D46A';
+  return (
+    <g>
+      <text
+        x={cx}
+        y={cy - 6}
+        textAnchor="middle"
+        fill={color}
+        fontSize={18}
+        fontWeight="bold"
+        fontFamily="'JetBrains Mono', monospace"
+      >
+        {focusPct}%
+      </text>
+      <text
+        x={cx}
+        y={cy + 12}
+        textAnchor="middle"
+        fill="#888888"
+        fontSize={9}
+        fontFamily="'JetBrains Mono', monospace"
+        letterSpacing={2}
+      >
+        FOCUS
+      </text>
+    </g>
+  );
+};
 
-export default function DistractionChart({
-  focusMs,
-  idleMs,
-  distractionMs,
-}: DistractionChartProps) {
+export default function DistractionChart({ focusMs, idleMs, distractionMs }: DistractionChartProps) {
   const total = focusMs + idleMs + distractionMs;
   if (total === 0) return null;
+
+  const focusPct = Math.round((focusMs / total) * 100);
 
   const data = [
     { name: 'Focus', value: focusMs, color: '#00D46A' },
@@ -29,7 +64,7 @@ export default function DistractionChart({
       </h3>
 
       <div className="flex items-center gap-6">
-        {/* Chart */}
+        {/* Chart with center label */}
         <div className="w-[160px] h-[160px] flex-shrink-0">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
@@ -42,6 +77,10 @@ export default function DistractionChart({
                 paddingAngle={3}
                 dataKey="value"
                 stroke="none"
+                label={({ cx, cy }) => (
+                  <CenterLabel cx={cx} cy={cy} focusPct={focusPct} />
+                )}
+                labelLine={false}
               >
                 {data.map((entry, i) => (
                   <Cell key={i} fill={entry.color} />
@@ -73,19 +112,12 @@ export default function DistractionChart({
             return (
               <div key={item.name} className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div
-                    className="w-3 h-3 rounded-sm"
-                    style={{ backgroundColor: item.color }}
-                  />
+                  <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: item.color }} />
                   <span className="text-sm text-flow-muted">{item.name}</span>
                 </div>
                 <div className="text-right">
-                  <span className="text-sm font-mono font-medium text-white">
-                    {min}m
-                  </span>
-                  <span className="text-xs text-flow-very-muted ml-1.5">
-                    {pct}%
-                  </span>
+                  <span className="text-sm font-mono font-medium text-white">{min}m</span>
+                  <span className="text-xs text-flow-very-muted ml-1.5">{pct}%</span>
                 </div>
               </div>
             );

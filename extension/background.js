@@ -18,6 +18,8 @@ const ALARM_PERIOD_MINUTES = 0.5; // 30 seconds (MV3 minimum)
 // ─── Initialization ─────────────────────────────────────────
 
 chrome.runtime.onInstalled.addListener(() => {
+  // EXTENSION #3: Set idle detection threshold on install
+  chrome.idle.setDetectionInterval(30); // 30 seconds
   chrome.storage.local.set({
     sessionActive: false,
     currentSession: null,

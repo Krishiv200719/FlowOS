@@ -272,6 +272,17 @@
       ? focusMs / (session.plannedDuration * 60000)
       : 0;
     statFocus.className = 'stat-mini-value ' + (ratio > 0.6 ? 'good' : ratio > 0.3 ? 'warn' : 'bad');
+
+    // UPGRADE #7: Update focus quality meter
+    const focusMeterFill = document.getElementById('focusMeterFill');
+    const focusMeterPct = document.getElementById('focusMeterPct');
+    if (focusMeterFill && focusMeterPct) {
+      const pct = Math.round(Math.min(ratio, 1) * 100);
+      focusMeterFill.style.width = `${pct}%`;
+      focusMeterFill.style.backgroundColor =
+        ratio > 0.6 ? '#00D46A' : ratio > 0.3 ? '#FF6B35' : '#FF3B3B';
+      focusMeterPct.textContent = `${pct}%`;
+    }
   }
 
   // ─── Refresh live stats periodically ────────────────────

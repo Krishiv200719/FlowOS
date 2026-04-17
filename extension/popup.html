@@ -345,7 +345,30 @@
       font-family: 'JetBrains Mono', monospace;
     }
 
-    /* ─── End Button ───────────────────────────────────── */
+    /* ─── UPGRADE #7: Focus Meter ─────────────────────────── */
+    .focus-meter-section { margin-bottom: 14px; }
+    .focus-meter-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      color: #888888;
+      margin-bottom: 6px;
+    }
+    #focusMeterPct { color: #00F5FF; font-weight: 600; }
+    .focus-meter-track {
+      height: 6px;
+      background: #1C1C1C;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .focus-meter-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.5s ease, background-color 0.5s ease;
+    }
+
+    /* ─── End Button ───────────────────────────────────────── */
     .btn-end {
       width: 100%;
       padding: 14px;
@@ -511,6 +534,17 @@
       <div class="stat-mini">
         <div class="stat-mini-value warn" id="statSwitches">0</div>
         <div class="stat-mini-label">Tab switches</div>
+      </div>
+    </div>
+
+    <!-- UPGRADE #7: Focus Quality Meter -->
+    <div class="focus-meter-section">
+      <div class="focus-meter-label">
+        <span>FOCUS QUALITY</span>
+        <span id="focusMeterPct">0%</span>
+      </div>
+      <div class="focus-meter-track">
+        <div class="focus-meter-fill" id="focusMeterFill" style="width:0%;background:#FF3B3B"></div>
       </div>
     </div>
 

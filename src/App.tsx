@@ -25,11 +25,11 @@ function AppRoutes() {
     <AppShell>
       <AnimatePresence mode="wait">
         <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/mirror" element={<Mirror />} />
-          <Route path="/mirror/:sessionId" element={<Mirror />} />
-          <Route path="/dna" element={<DNA />} />
-          <Route path="/history" element={<History />} />
+          <Route path="/" element={<Home key="home" />} />
+          <Route path="/mirror" element={<Mirror key="mirror" />} />
+          <Route path="/mirror/:sessionId" element={<Mirror key="mirror-detail" />} />
+          <Route path="/dna" element={<DNA key="dna" />} />
+          <Route path="/history" element={<History key="history" />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AnimatePresence>

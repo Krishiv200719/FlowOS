@@ -20,22 +20,10 @@ body {
 }
 
 /* ─── Scrollbar ────────────────────────────────────────── */
-::-webkit-scrollbar {
-  width: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: #0A0A0A;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #2A2A2A;
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #444444;
-}
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #0A0A0A; }
+::-webkit-scrollbar-thumb { background: #2A2A2A; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #444444; }
 
 /* ─── Selection ────────────────────────────────────────── */
 ::selection {
@@ -67,13 +55,41 @@ body {
 }
 
 /* ─── Recharts Overrides ───────────────────────────────── */
-.recharts-tooltip-wrapper {
-  outline: none !important;
-}
-
+.recharts-tooltip-wrapper { outline: none !important; }
 .recharts-default-tooltip {
   background: #161616 !important;
   border: 1px solid #2A2A2A !important;
   border-radius: 6px !important;
   padding: 8px 12px !important;
+}
+
+/* ─── DESIGN #7: Skeleton Shimmer ──────────────────────── */
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: calc(400px + 100%) 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #111111 25%, #1C1C1C 50%, #111111 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+/* ─── DESIGN #5: Scanline Animation ────────────────────── */
+@keyframes scanline {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(600%); }
+}
+
+.logo-scanline {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(0, 245, 255, 0.25), transparent);
+  animation: scanline 3s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
 }
