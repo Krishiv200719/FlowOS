@@ -12,48 +12,41 @@ interface StatsGridProps {
 }
 
 export default function StatsGrid({
-  realFocusMin,
-  timeLostMin,
-  tabSwitches,
-  avgRecoveryMin,
-  plannedMin,
-  distractionMin,
-  trueCostPerDist,
-  recoverySecActual,
+  realFocusMin, timeLostMin, tabSwitches, plannedMin,
+  distractionMin, trueCostPerDist, recoverySecActual,
 }: StatsGridProps) {
   const stats = [
     {
       label: 'Real Focus Time',
-      value: `${realFocusMin}`,
+      value: realFocusMin,
       unit: 'min',
-      color: '#00F5FF',
       subtext: `of ${plannedMin} min planned`,
-      icon: '🎯',
+      color: '#00F5FF',
+      accent: false,
     },
     {
       label: 'Time Lost',
-      value: `${timeLostMin}`,
+      value: timeLostMin,
       unit: 'min',
+      subtext: 'distractions + idle',
       color: '#FF3B3B',
-      subtext: 'to distractions + idle',
-      icon: '🕳',
+      accent: false,
     },
     {
       label: 'Tab Switches',
-      value: `${tabSwitches}`,
+      value: tabSwitches,
       unit: 'times',
-      color: '#FF6B35',
       subtext: 'interruptions tracked',
-      icon: '⚡',
+      color: '#FF6B35',
+      accent: false,
     },
     {
-      label: 'True Cost Per Distraction',
-      value: `${trueCostPerDist}`,
+      label: 'True Cost / Distraction',
+      value: trueCostPerDist,
       unit: 'min',
-      color: '#888888',
-      subtext: `${recoverySecActual}s recovery + distraction time`,
-      icon: '💸',
-      highlight: true,
+      subtext: `${recoverySecActual}s recovery overhead`,
+      color: '#888',
+      accent: true,
     },
   ];
 
@@ -62,36 +55,17 @@ export default function StatsGrid({
       {stats.map((stat, i) => (
         <motion.div
           key={stat.label}
-          className={`px-5 py-4 rounded-lg border ${
-            stat.highlight
-              ? 'border-flow-orange/40 bg-[#1A1400]'
-              : 'card-dashed'
-          }`}
-          initial={{ opacity: 0, scale: 0.95 }}
+          className={`px-5 py-4 rounded-lg border ${stat.accent ? 'border-[#FF6B35]/20 bg-[#110E00]' : 'border-[#1C1C1C] bg-[#0D0D0D]'}`}
+          initial={{ opacity: 0, scale: 0.97 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.2 + i * 0.08 }}
+          transition={{ delay: 0.15 + i * 0.07 }}
         >
-          <div className="flex items-start justify-between mb-2">
-            <p className="text-[10px] font-mono uppercase tracking-wider text-flow-muted">
-              {stat.label}
-            </p>
-            <span className="text-base">{stat.icon}</span>
-          </div>
-          <p
-            className="text-3xl font-bold font-mono leading-none"
-            style={{ color: stat.color }}
-          >
+          <p className="text-[9px] font-mono uppercase tracking-widest text-[#444] mb-3">{stat.label}</p>
+          <p className="text-3xl font-bold font-mono leading-none" style={{ color: stat.color }}>
             {stat.value}
-            <span className="text-lg ml-1 font-normal opacity-70">{stat.unit}</span>
+            <span className="text-sm ml-1 font-normal" style={{ color: stat.color, opacity: 0.5 }}>{stat.unit}</span>
           </p>
-          {stat.subtext && (
-            <p className="text-[10px] text-flow-very-muted mt-1.5">{stat.subtext}</p>
-          )}
-          {stat.highlight && (
-            <p className="text-[9px] font-mono text-flow-orange/70 mt-1">
-              ← judges lean forward here
-            </p>
-          )}
+          <p className="text-[10px] text-[#333] mt-2">{stat.subtext}</p>
         </motion.div>
       ))}
     </div>

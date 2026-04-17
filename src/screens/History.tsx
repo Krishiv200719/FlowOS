@@ -25,10 +25,8 @@ export default function History() {
     );
   }
 
-  // Filter out test sessions with garbage goal names (< 10 chars)
-  const sorted = [...sessions]
-    .filter(s => s.goal.length > 10)
-    .sort((a, b) => b.startTime - a.startTime);
+  // Show all sessions sorted by recency
+  const sorted = [...sessions].sort((a, b) => b.startTime - a.startTime);
 
   if (sorted.length === 0) {
     return (
@@ -39,7 +37,11 @@ export default function History() {
         exit="exit"
         className="flex flex-col items-center justify-center h-[60vh] space-y-4"
       >
-        <span className="text-4xl">📋</span>
+        <div className="w-10 h-10 rounded-lg border border-[#1C1C1C] flex items-center justify-center mb-4">
+          <div className="w-4 h-5 border border-[#333] rounded-sm relative">
+            <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-1 bg-[#333] rounded-sm" />
+          </div>
+        </div>
         <p className="text-lg font-medium text-white">No sessions yet</p>
         <p className="text-sm text-flow-muted">Complete a focus session using the Chrome extension.</p>
       </motion.div>
@@ -126,7 +128,7 @@ export default function History() {
                       {focusPct}% focused
                     </span>
                     {isLowFocus && (
-                      <span className="text-[10px] text-flow-red">⚠</span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-flow-red inline-block" title="Low focus session" />
                     )}
                     {!extensionConnected && (
                       <span className="text-[9px] font-mono text-flow-very-muted border border-[#2A2A2A] px-1 rounded">

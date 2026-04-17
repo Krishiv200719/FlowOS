@@ -130,7 +130,12 @@ export default function DNA() {
         exit="exit"
         className="flex flex-col items-center justify-center h-[60vh] space-y-5"
       >
-        <span className="text-5xl">🧬</span>
+        <div className="w-12 h-12 rounded-lg border border-[#1C1C1C] flex items-center justify-center mb-4">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M4 2C4 2 4 10 10 10C16 10 16 18 16 18" stroke="#00F5FF" strokeWidth="1.5" strokeLinecap="round"/>
+            <path d="M16 2C16 2 16 10 10 10C4 10 4 18 4 18" stroke="#00D46A" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+        </div>
         <p className="text-xl font-bold text-white">Complete 3 sessions to unlock Focus DNA</p>
         <div className="w-72 h-3 bg-flow-elevated rounded-full overflow-hidden">
           <motion.div
@@ -191,8 +196,7 @@ export default function DNA() {
         <div className="space-y-4">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-4 h-4 border-2 border-flow-cyan border-t-transparent rounded-full animate-spin" />
-            {/* BUG #3: Changed "GEMINI" → "CLAUDE AI" */}
-            <span className="text-xs text-flow-cyan font-mono">ANALYZING WITH CLAUDE AI...</span>
+            <span className="text-xs text-flow-cyan font-mono">ANALYZING YOUR PATTERNS...</span>
           </div>
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="skeleton h-16 w-full rounded-lg" />
@@ -204,7 +208,10 @@ export default function DNA() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
         >
-          <span className="text-3xl">⚠️</span>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded border border-flow-red/20 mb-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-flow-red" />
+            <span className="text-xs font-mono text-flow-red">Analysis unavailable</span>
+          </div>
           <p className="text-sm text-flow-red font-medium">Failed to load AI insights</p>
           <p className="text-xs text-flow-muted max-w-md mx-auto">{insightsError}</p>
           <button

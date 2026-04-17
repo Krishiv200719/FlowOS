@@ -56,24 +56,26 @@ export default function Mirror() {
         exit="exit"
         className="flex flex-col items-center justify-center h-[60vh] space-y-4"
       >
-        <span className="text-4xl">🪞</span>
+        <div className="w-12 h-12 rounded-lg border border-[#1C1C1C] flex items-center justify-center mb-4">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <rect x="3" y="1" width="12" height="14" rx="2" stroke="#333" strokeWidth="1.5"/>
+            <path d="M6 16h6" stroke="#333" strokeWidth="1.5" strokeLinecap="round"/>
+            <path d="M9 16v1" stroke="#333" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+        </div>
         <p className="text-lg font-medium text-white">No sessions yet</p>
         <p className="text-sm text-flow-muted">Complete a focus session to see your Honest Mirror.</p>
       </motion.div>
     );
   }
 
-  // UPGRADE #1: Session tabs — only show sessions with meaningful goals
+  // Session tabs — 5 most recent sessions
   const recentSessions = [...sessions]
-    .filter(s => s.goal.length > 10)  // filter out test sessions with garbage goals
     .sort((a, b) => b.startTime - a.startTime)
     .slice(0, 5);
 
-  // Determine active session: selectedSession → sessionId param → worst session
-  // For demo quality: prefer worst session with a meaningful goal (>10 chars)
-  const meaningfulSessions = sessions.filter(s => s.goal.length > 10);
-  const poolForWorst = meaningfulSessions.length > 0 ? meaningfulSessions : sessions;
-  const worstSession = poolForWorst.reduce((worst, s) =>
+  // Default to worst session unless a specific one is selected
+  const worstSession = sessions.reduce((worst, s) =>
     s.stats.focusRatio < worst.stats.focusRatio ? s : worst
   );
 
