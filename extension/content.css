@@ -1,0 +1,269 @@
+/* ═══════════════════════════════════════════════════════════
+   FlowOS — Guardian Overlay Styles
+   Injected into all pages via content_scripts
+   Uses !important and unique prefixes to avoid page conflicts
+   ═══════════════════════════════════════════════════════════ */
+
+/* ─── Guardian Banner ──────────────────────────────────── */
+
+#flowos-guardian-banner {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 2147483647 !important;
+  transform: translateY(-100%) !important;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.4s ease !important;
+  opacity: 0 !important;
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  pointer-events: auto !important;
+}
+
+#flowos-guardian-banner.flowos-visible {
+  transform: translateY(0) !important;
+  opacity: 1 !important;
+}
+
+#flowos-guardian-banner.flowos-exiting {
+  transform: translateY(-100%) !important;
+  opacity: 0 !important;
+}
+
+.flowos-banner-inner {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 16px !important;
+  padding: 14px 24px !important;
+  background: linear-gradient(135deg, #0A0A0A 0%, #111111 100%) !important;
+  border-bottom: 1px solid #2A2A2A !important;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5),
+              0 0 40px rgba(0, 245, 255, 0.06) !important;
+}
+
+.flowos-banner-left {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  flex: 1 !important;
+  min-width: 0 !important;
+}
+
+.flowos-banner-pulse {
+  width: 8px !important;
+  height: 8px !important;
+  border-radius: 50% !important;
+  background: #FF3B3B !important;
+  flex-shrink: 0 !important;
+  animation: flowos-pulse 2s ease-in-out infinite !important;
+}
+
+@keyframes flowos-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(255, 59, 59, 0.4); }
+  50% { opacity: 0.6; box-shadow: 0 0 0 6px rgba(255, 59, 59, 0); }
+}
+
+.flowos-banner-icon {
+  font-size: 18px !important;
+  flex-shrink: 0 !important;
+}
+
+.flowos-banner-text {
+  font-size: 14px !important;
+  color: #CCCCCC !important;
+  line-height: 1.4 !important;
+}
+
+.flowos-banner-text strong {
+  color: #FFFFFF !important;
+  font-weight: 600 !important;
+}
+
+.flowos-domain {
+  color: #FF6B35 !important;
+}
+
+#flowos-elapsed-time {
+  color: #FF3B3B !important;
+  font-weight: 600 !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+.flowos-banner-actions {
+  display: flex !important;
+  gap: 8px !important;
+  flex-shrink: 0 !important;
+}
+
+/* ─── Buttons ──────────────────────────────────────────── */
+
+.flowos-btn {
+  border: none !important;
+  border-radius: 6px !important;
+  padding: 8px 16px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  white-space: nowrap !important;
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  line-height: 1.4 !important;
+}
+
+.flowos-btn-primary {
+  background: #00F5FF !important;
+  color: #0A0A0A !important;
+}
+
+.flowos-btn-primary:hover {
+  background: #33F7FF !important;
+  box-shadow: 0 0 16px rgba(0, 245, 255, 0.3) !important;
+  transform: translateY(-1px) !important;
+}
+
+.flowos-btn-primary:active {
+  transform: translateY(0) !important;
+}
+
+.flowos-btn-secondary {
+  background: #1C1C1C !important;
+  color: #888888 !important;
+  border: 1px solid #2A2A2A !important;
+}
+
+.flowos-btn-secondary:hover {
+  background: #222222 !important;
+  color: #AAAAAA !important;
+  border-color: #444444 !important;
+}
+
+.flowos-btn-large {
+  padding: 14px 32px !important;
+  font-size: 15px !important;
+  border-radius: 8px !important;
+  width: 100% !important;
+}
+
+/* ─── Re-entry Modal ───────────────────────────────────── */
+
+#flowos-reentry-modal {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  z-index: 2147483647 !important;
+  opacity: 0 !important;
+  transition: opacity 0.35s ease !important;
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  pointer-events: auto !important;
+}
+
+#flowos-reentry-modal.flowos-visible {
+  opacity: 1 !important;
+}
+
+#flowos-reentry-modal.flowos-exiting {
+  opacity: 0 !important;
+}
+
+.flowos-modal-backdrop {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  height: 100% !important;
+  background: rgba(0, 0, 0, 0.85) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+
+.flowos-modal-card {
+  position: relative !important;
+  width: 90% !important;
+  max-width: 440px !important;
+  background: #111111 !important;
+  border: 1px dashed #2A2A2A !important;
+  border-radius: 8px !important;
+  padding: 40px 32px !important;
+  text-align: center !important;
+  overflow: hidden !important;
+  transform: scale(0.95) translateY(10px) !important;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+#flowos-reentry-modal.flowos-visible .flowos-modal-card {
+  transform: scale(1) translateY(0) !important;
+}
+
+.flowos-modal-glow {
+  position: absolute !important;
+  top: -50% !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: 200px !important;
+  height: 200px !important;
+  background: radial-gradient(circle, rgba(0, 245, 255, 0.08) 0%, transparent 70%) !important;
+  pointer-events: none !important;
+}
+
+.flowos-modal-header {
+  margin-bottom: 16px !important;
+}
+
+.flowos-modal-icon {
+  font-size: 40px !important;
+  display: block !important;
+}
+
+.flowos-modal-title {
+  font-size: 24px !important;
+  font-weight: 700 !important;
+  color: #FFFFFF !important;
+  margin: 0 0 8px 0 !important;
+  line-height: 1.3 !important;
+}
+
+.flowos-modal-subtitle {
+  font-size: 15px !important;
+  color: #888888 !important;
+  margin: 0 0 24px 0 !important;
+  line-height: 1.5 !important;
+}
+
+.flowos-modal-subtitle strong {
+  color: #00F5FF !important;
+}
+
+.flowos-modal-input {
+  display: block !important;
+  width: 100% !important;
+  padding: 14px 16px !important;
+  background: #0A0A0A !important;
+  border: 1px solid #2A2A2A !important;
+  border-radius: 6px !important;
+  color: #FFFFFF !important;
+  font-size: 15px !important;
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  outline: none !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+  margin-bottom: 16px !important;
+  box-sizing: border-box !important;
+}
+
+.flowos-modal-input:focus {
+  border-color: #00F5FF !important;
+  box-shadow: 0 0 0 3px rgba(0, 245, 255, 0.1) !important;
+}
+
+.flowos-modal-input::placeholder {
+  color: #444444 !important;
+}
+
+.flowos-modal-footer {
+  margin-top: 16px !important;
+  font-size: 12px !important;
+  color: #444444 !important;
+  font-style: italic !important;
+}

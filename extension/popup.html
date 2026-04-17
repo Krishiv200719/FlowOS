@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=320">
+  <title>FlowOS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    /* ─── Reset & Base ─────────────────────────────────── */
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 340px;
+      min-height: 200px;
+      background: #0A0A0A;
+      color: #FFFFFF;
+      font-family: 'Space Grotesk', -apple-system, sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* ─── Header ───────────────────────────────────────── */
+    .header {
+      padding: 20px 20px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .logo-icon {
+      width: 28px;
+      height: 28px;
+      background: linear-gradient(135deg, #00F5FF 0%, #00D46A 100%);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+      color: #0A0A0A;
+    }
+
+    .logo-text {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .logo-text span {
+      color: #00F5FF;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #444444;
+    }
+
+    .status-dot.active {
+      background: #00D46A;
+      box-shadow: 0 0 8px rgba(0, 212, 106, 0.4);
+      animation: pulse-green 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-green {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* ─── Divider ──────────────────────────────────────── */
+    .divider {
+      height: 1px;
+      background: #2A2A2A;
+      margin: 0 20px;
+    }
+
+    /* ─── Idle State (No Session) ──────────────────────── */
+    .idle-view {
+      padding: 20px;
+    }
+
+    .greeting {
+      font-size: 13px;
+      color: #888888;
+      margin-bottom: 16px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: #888888;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 12px 14px;
+      background: #111111;
+      border: 1px dashed #2A2A2A;
+      border-radius: 6px;
+      color: #FFFFFF;
+      font-size: 14px;
+      font-family: 'Space Grotesk', sans-serif;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .form-input:focus {
+      border-color: #00F5FF;
+      border-style: solid;
+      box-shadow: 0 0 0 3px rgba(0, 245, 255, 0.08);
+    }
+
+    .form-input::placeholder {
+      color: #444444;
+    }
+
+    /* ─── Duration Slider ──────────────────────────────── */
+    .duration-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 10px;
+    }
+
+    .duration-value {
+      font-size: 20px;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      color: #00F5FF;
+    }
+
+    .duration-value span {
+      font-size: 12px;
+      color: #888888;
+      font-weight: 400;
+    }
+
+    .slider-track {
+      position: relative;
+      width: 100%;
+      height: 6px;
+      background: #1C1C1C;
+      border-radius: 3px;
+      margin-bottom: 8px;
+    }
+
+    .slider-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #00F5FF, #00D46A);
+      border-radius: 3px;
+      transition: width 0.15s ease;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      background: transparent;
+      position: absolute;
+      top: 0;
+      left: 0;
+      margin: 0;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      background: #00F5FF;
+      border-radius: 50%;
+      border: 2px solid #0A0A0A;
+      box-shadow: 0 0 8px rgba(0, 245, 255, 0.3);
+      cursor: grab;
+      margin-top: -6px;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:active {
+      cursor: grabbing;
+      transform: scale(1.1);
+    }
+
+    .slider-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: #444444;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ─── Start Button ─────────────────────────────────── */
+    .btn-start {
+      width: 100%;
+      padding: 14px;
+      background: #00F5FF;
+      color: #0A0A0A;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 700;
+      font-family: 'Space Grotesk', sans-serif;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-top: 8px;
+      letter-spacing: -0.3px;
+    }
+
+    .btn-start:hover {
+      background: #33F7FF;
+      box-shadow: 0 0 20px rgba(0, 245, 255, 0.25);
+      transform: translateY(-1px);
+    }
+
+    .btn-start:active {
+      transform: translateY(0);
+    }
+
+    .btn-start:disabled {
+      background: #1C1C1C;
+      color: #444444;
+      cursor: not-allowed;
+      box-shadow: none;
+      transform: none;
+    }
+
+    /* ─── Active Session View ──────────────────────────── */
+    .active-view {
+      padding: 20px;
+    }
+
+    .session-header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .session-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #888888;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      font-family: 'JetBrains Mono', monospace;
+      margin-bottom: 4px;
+    }
+
+    .timer {
+      font-size: 48px;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      color: #00F5FF;
+      letter-spacing: -2px;
+      line-height: 1;
+      margin-bottom: 4px;
+      text-shadow: 0 0 30px rgba(0, 245, 255, 0.2);
+    }
+
+    .timer-planned {
+      font-size: 12px;
+      color: #444444;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ─── Goal Card ────────────────────────────────────── */
+    .goal-card {
+      background: #111111;
+      border: 1px dashed #2A2A2A;
+      border-radius: 6px;
+      padding: 12px 14px;
+      margin-bottom: 16px;
+    }
+
+    .goal-card-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: #444444;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-family: 'JetBrains Mono', monospace;
+      margin-bottom: 4px;
+    }
+
+    .goal-card-text {
+      font-size: 14px;
+      color: #CCCCCC;
+      line-height: 1.4;
+      word-break: break-word;
+    }
+
+    /* ─── Live Stats ───────────────────────────────────── */
+    .live-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .stat-mini {
+      background: #111111;
+      border: 1px solid #1C1C1C;
+      border-radius: 6px;
+      padding: 10px 12px;
+      text-align: center;
+    }
+
+    .stat-mini-value {
+      font-size: 18px;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      color: #FFFFFF;
+      line-height: 1;
+      margin-bottom: 2px;
+    }
+
+    .stat-mini-value.good { color: #00D46A; }
+    .stat-mini-value.warn { color: #FF6B35; }
+    .stat-mini-value.bad { color: #FF3B3B; }
+
+    .stat-mini-label {
+      font-size: 9px;
+      color: #888888;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ─── End Button ───────────────────────────────────── */
+    .btn-end {
+      width: 100%;
+      padding: 14px;
+      background: transparent;
+      color: #FF3B3B;
+      border: 1px dashed #FF3B3B;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: 'Space Grotesk', sans-serif;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-end:hover {
+      background: rgba(255, 59, 59, 0.08);
+      border-style: solid;
+      box-shadow: 0 0 12px rgba(255, 59, 59, 0.1);
+    }
+
+    /* ─── Footer ───────────────────────────────────────── */
+    .footer {
+      padding: 12px 20px 16px;
+      text-align: center;
+    }
+
+    .footer-text {
+      font-size: 10px;
+      color: #333333;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ─── Transitions ──────────────────────────────────── */
+    .view {
+      animation: fadeIn 0.25s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ─── Presets Row ──────────────────────────────────── */
+    .presets {
+      display: flex;
+      gap: 6px;
+      margin-top: 4px;
+      margin-bottom: 16px;
+    }
+
+    .preset-btn {
+      flex: 1;
+      padding: 6px;
+      background: #111111;
+      border: 1px solid #1C1C1C;
+      border-radius: 4px;
+      color: #888888;
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-align: center;
+    }
+
+    .preset-btn:hover {
+      background: #1C1C1C;
+      color: #CCCCCC;
+      border-color: #2A2A2A;
+    }
+
+    .preset-btn.active {
+      background: rgba(0, 245, 255, 0.08);
+      border-color: #00F5FF;
+      color: #00F5FF;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ─── Header ──────────────────────────────────────── -->
+  <div class="header">
+    <div class="logo">
+      <div class="logo-icon">F</div>
+      <div class="logo-text">Flow<span>OS</span></div>
+    </div>
+    <div class="status-dot" id="statusDot"></div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ─── Idle View (No Active Session) ───────────────── -->
+  <div class="idle-view view" id="idleView">
+    <p class="greeting" id="greeting">Ready to focus.</p>
+
+    <div class="form-group">
+      <label class="form-label" for="goalInput">What will you work on?</label>
+      <input
+        type="text"
+        id="goalInput"
+        class="form-input"
+        placeholder="e.g. Write chapter 2..."
+        maxlength="120"
+        autocomplete="off"
+      />
+    </div>
+
+    <div class="form-group">
+      <div class="duration-header">
+        <label class="form-label">Duration</label>
+        <div class="duration-value" id="durationDisplay">30 <span>min</span></div>
+      </div>
+      <div class="slider-track">
+        <div class="slider-fill" id="sliderFill" style="width: 16.67%"></div>
+        <input
+          type="range"
+          id="durationSlider"
+          min="2"
+          max="180"
+          value="30"
+          step="5"
+        />
+      </div>
+      <div class="slider-labels">
+        <span>2m</span>
+        <span>15m</span>
+        <span>1h</span>
+        <span>2h</span>
+        <span>3h</span>
+      </div>
+    </div>
+
+    <div class="presets">
+      <button class="preset-btn" data-duration="25">25m</button>
+      <button class="preset-btn active" data-duration="30">30m</button>
+      <button class="preset-btn" data-duration="60">1h</button>
+      <button class="preset-btn" data-duration="90">90m</button>
+      <button class="preset-btn" data-duration="120">2h</button>
+    </div>
+
+    <button class="btn-start" id="startBtn">
+      START FOCUS SESSION →
+    </button>
+  </div>
+
+  <!-- ─── Active Session View ─────────────────────────── -->
+  <div class="active-view view" id="activeView" style="display: none;">
+    <div class="session-header">
+      <div class="session-label">Session in Progress</div>
+      <div class="timer" id="timerDisplay">00:00</div>
+      <div class="timer-planned">of <span id="plannedDisplay">30:00</span> planned</div>
+    </div>
+
+    <div class="goal-card">
+      <div class="goal-card-label">Current Goal</div>
+      <div class="goal-card-text" id="activeGoal">—</div>
+    </div>
+
+    <div class="live-stats">
+      <div class="stat-mini">
+        <div class="stat-mini-value good" id="statFocus">0</div>
+        <div class="stat-mini-label">Focus min</div>
+      </div>
+      <div class="stat-mini">
+        <div class="stat-mini-value warn" id="statSwitches">0</div>
+        <div class="stat-mini-label">Tab switches</div>
+      </div>
+    </div>
+
+    <button class="btn-end" id="endBtn">
+      END SESSION
+    </button>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="footer">
+    <p class="footer-text">your data never leaves your device</p>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
