@@ -140,7 +140,9 @@ export default function Mirror() {
                   : 'border-[#2A2A2A] bg-[#111111] text-flow-muted hover:border-flow-muted/50 hover:text-white'
               }`}
             >
-              <span className="truncate max-w-[120px]">{s.goal}</span>
+              <span className="truncate max-w-[120px]">
+                {s.allowlistDomain ? '🎯 ' : ''}{s.goal}
+              </span>
               <span
                 className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-bold"
                 style={{ color: tabColor, backgroundColor: `${tabColor}18` }}
@@ -197,6 +199,11 @@ export default function Mirror() {
           transition={{ delay: 0.3 }}
         >
           {activeSession.goal}
+          {activeSession.allowlistDomain && (
+            <span className="inline-flex items-center gap-1 text-[9px] font-mono px-2 py-0.5 rounded border border-flow-cyan/20 text-flow-cyan ml-2">
+              🎯 ALLOWLIST: {activeSession.allowlistDomain}
+            </span>
+          )}
           <span className="text-flow-very-muted mx-2">•</span>
           {sessionDate}
         </motion.p>

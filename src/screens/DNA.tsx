@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useSessionContext } from '../context/SessionContext';
-import { getAIInsights } from '../lib/gemini';
+import { getAIInsights } from '../lib/claude';
 import { saveInsights, getInsights } from '../lib/db';
 import { getHourlyHeatmap, getLocalInsight } from '../lib/patterns';
 import { getDailyScores } from '../lib/scoring';

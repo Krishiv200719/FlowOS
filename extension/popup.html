@@ -135,6 +135,76 @@
       color: #444444;
     }
 
+    /* ─── Focus Mode Tabs ──────────────────────────────── */
+    .mode-tabs {
+      display: flex;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .mode-tab {
+      flex: 1;
+      padding: 8px 10px;
+      background: #111111;
+      border: 1px solid #1C1C1C;
+      border-radius: 6px;
+      color: #888888;
+      font-size: 12px;
+      font-family: 'Space Grotesk', sans-serif;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-align: center;
+    }
+
+    .mode-tab:hover {
+      background: #1C1C1C;
+      color: #CCCCCC;
+      border-color: #2A2A2A;
+    }
+
+    .mode-tab.active {
+      background: rgba(0, 245, 255, 0.08);
+      border-color: #00F5FF;
+      color: #00F5FF;
+    }
+
+    .allowlist-hint {
+      margin-top: 6px;
+      font-size: 10px;
+      color: #444444;
+      font-family: 'JetBrains Mono', monospace;
+      line-height: 1.4;
+    }
+
+    .mode-indicator {
+      font-size: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      color: #888888;
+      padding: 4px 8px;
+      background: #111111;
+      border: 1px solid #1C1C1C;
+      border-radius: 4px;
+      margin-bottom: 12px;
+      text-align: center;
+      display: none;
+    }
+
+    .mode-indicator.visible {
+      display: block;
+    }
+
+    #flowos-suggestion-banner {
+      margin-top: 6px;
+      padding: 8px 12px;
+      background: rgba(0, 245, 255, 0.05);
+      border: 1px solid rgba(0, 245, 255, 0.2);
+      border-radius: 6px;
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      color: #888888;
+      display: none;
+    }
+
     /* ─── Duration Slider ──────────────────────────────── */
     .duration-header {
       display: flex;
@@ -498,6 +568,38 @@
       />
     </div>
 
+    <!-- Focus Mode Toggle (Feature A) -->
+    <div class="form-group">
+      <label class="form-label">Focus Mode</label>
+      <div class="mode-tabs">
+        <button class="mode-tab active" id="modeBlocklist" data-mode="blocklist">
+          🛡️ Block distractions
+        </button>
+        <button class="mode-tab" id="modeAllowlist" data-mode="allowlist">
+          🎯 Focus on one site
+        </button>
+      </div>
+    </div>
+
+    <!-- Allowlist domain input -->
+    <div class="form-group" id="allowlistGroup" style="display:none;">
+      <label class="form-label" for="allowlistInput">Which site will you focus on?</label>
+      <input
+        type="text"
+        id="allowlistInput"
+        class="form-input"
+        placeholder="e.g. youtube.com, notion.so, github.com"
+        maxlength="100"
+        autocomplete="off"
+      />
+      <p class="allowlist-hint">
+        ⚡ You'll be nudged back if you leave this site for more than 45 seconds.
+      </p>
+    </div>
+
+    <!-- Suggestion banner for goal auto-detection -->
+    <div id="flowos-suggestion-banner" style="display:none;"></div>
+
     <div class="form-group">
       <div class="duration-header">
         <label class="form-label">Duration</label>
@@ -548,6 +650,8 @@
       <div class="goal-card-label">Current Goal</div>
       <div class="goal-card-text" id="activeGoal">—</div>
     </div>
+
+    <div id="modeIndicator" class="mode-indicator"></div>
 
     <div class="live-stats">
       <div class="stat-mini">

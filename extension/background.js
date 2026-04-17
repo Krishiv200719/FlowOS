@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════
 // FlowOS — Background Service Worker (MV3)
-// Session state manager + activity tracker
-// Layer 1 Sensors: Tab Tracker, Idle Detector, App Monitor
+// Session manager + Layer 1 sensors + Allowlist Mode
+// + Ambient Tracker (Feature B)
 // ═══════════════════════════════════════════════════════════
 
 const DISTRACTION_DOMAINS = [
@@ -14,24 +14,29 @@ const DISTRACTION_DOMAINS = [
 
 const IDLE_THRESHOLD_SECONDS = 30;
 const ALARM_NAME = 'flowos-activity-tick';
-const ALARM_PERIOD_MINUTES = 0.5; // 30s — MV3 minimum
+const ALARM_PERIOD_MINUTES = 1; // Bug #5 Fix: MV3 minimum is 1 minute
 
-// ─── Layer 1: App Monitor State ─────────────────────────────
-// chromeHasFocus is module-scope but only used for the CURRENT
-// window focus event — it resets correctly via onFocusChanged.
+// Feature B: Ambient Tracker
+const AMBIENT_ALARM_NAME = 'flowos-ambient-tick';
+const AMBIENT_PERIOD_MINUTES = 1;
+const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
+
+// ─── Module-scope state (App Monitor + Idle Detector) ────────
 let chromeHasFocus = true;
-
-// ─── Layer 1: Idle Detector State ───────────────────────────
-// isIdle/idleSince are module-scope — exposed via GET_STATUS.
-// They reset on SW restart which is fine: if SW restarted,
-// the idle event was already written to storage.
 let isIdle = false;
 let idleSince = null;
 
-// CRITICAL (MV3): set idle threshold at top-level so it applies
-// on every service worker restart, not just onInstalled.
+// CRITICAL (MV3): set idle threshold at top-level — survives SW restarts
 chrome.idle.setDetectionInterval(IDLE_THRESHOLD_SECONDS);
 console.log(`[FlowOS] SW started. Idle threshold: ${IDLE_THRESHOLD_SECONDS}s`);
+
+// Ensure ambient alarm is always running (survives SW restarts)
+chrome.alarms.get(AMBIENT_ALARM_NAME, (alarm) => {
+  if (!alarm) {
+    chrome.alarms.create(AMBIENT_ALARM_NAME, { periodInMinutes: AMBIENT_PERIOD_MINUTES });
+    console.log('[FlowOS] Ambient tracker alarm started.');
+  }
+});
 
 // ─── Initialization ─────────────────────────────────────────
 
@@ -42,8 +47,10 @@ chrome.runtime.onInstalled.addListener(() => {
     currentSession: null,
     completedSessions: [],
     globalSiteLog: {},
+    ambientLog: [],
     settings: { distractionDomains: DISTRACTION_DOMAINS }
   });
+  chrome.alarms.create(AMBIENT_ALARM_NAME, { periodInMinutes: AMBIENT_PERIOD_MINUTES });
   console.log('[FlowOS] Extension installed.');
 });
 
@@ -52,7 +59,12 @@ chrome.runtime.onInstalled.addListener(() => {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (message.type) {
     case 'START_SESSION':
-      startSession(message.goal, message.plannedDuration)
+      startSession(
+        message.goal,
+        message.plannedDuration,
+        message.allowlistDomain ?? null,
+        message.mode ?? 'blocklist'
+      )
         .then(() => sendResponse({ success: true }))
         .catch(err => sendResponse({ success: false, error: err.message }));
       return true;
@@ -75,7 +87,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       });
       return true;
 
-    // Feature 3c: site log
     case 'GET_SITE_LOG':
       chrome.storage.local.get(['currentSession', 'globalSiteLog'], (data) => {
         const siteLog = data.currentSession
@@ -89,6 +100,54 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       chrome.storage.local.set({ globalSiteLog: {} }, () => {
         sendResponse({ success: true });
       });
+      return true;
+
+    // Feature B: Ambient log
+    case 'GET_AMBIENT_LOG':
+      chrome.storage.local.get(['ambientLog'], (data) => {
+        const log = (data.ambientLog || []).filter(
+          e => e.timestamp > Date.now() - TWO_HOURS_MS
+        );
+        sendResponse({ log });
+      });
+      return true;
+
+    // Bug #4 Fix: find nearest non-distraction tab and activate it
+    case 'FOCUS_BACK_TO_WORK':
+      chrome.tabs.query({ currentWindow: true }, (tabs) => {
+        const nonDistraction = tabs.find(t => {
+          if (!t.url) return false;
+          try {
+            const d = new URL(t.url).hostname.replace(/^www\./, '');
+            return !DISTRACTION_DOMAINS.some(dd => d.includes(dd)) &&
+                   !t.url.startsWith('chrome://') &&
+                   !t.url.startsWith('chrome-extension://');
+          } catch { return false; }
+        });
+        if (nonDistraction?.id) chrome.tabs.update(nonDistraction.id, { active: true });
+      });
+      sendResponse({ success: true });
+      return true;
+
+    // Feature A5: navigate back to allowlist site
+    case 'FOCUS_BACK_TO_ALLOWLIST':
+      chrome.tabs.query({ currentWindow: true }, (tabs) => {
+        const allowed = (message.allowlistDomain || '').toLowerCase();
+        const allowedTab = tabs.find(t => {
+          if (!t.url) return false;
+          try {
+            const d = new URL(t.url).hostname.replace(/^www\./, '').toLowerCase();
+            return d.includes(allowed) || allowed.includes(d);
+          } catch { return false; }
+        });
+        if (allowedTab?.id) {
+          chrome.tabs.update(allowedTab.id, { active: true });
+        } else {
+          // No tab open with that domain — open one
+          chrome.tabs.create({ url: `https://${allowed}` });
+        }
+      });
+      sendResponse({ success: true });
       return true;
 
     case 'TEST_NOTIFICATION':
@@ -107,28 +166,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // ─── Session Lifecycle ──────────────────────────────────────
 
-async function startSession(goal, plannedDuration) {
+async function startSession(goal, plannedDuration, allowlistDomain = null, mode = 'blocklist') {
   const session = {
     id: crypto.randomUUID(),
     startTime: Date.now(),
     endTime: null,
     plannedDuration,
     goal,
+    allowlistDomain,   // Feature A
+    mode,              // Feature A: 'blocklist' | 'allowlist'
     events: [],
     stats: null
   };
 
   await chrome.storage.local.set({ sessionActive: true, currentSession: session });
-
-  // Reset SW-scope global tracker for new session
-  await chrome.storage.session.set({
-    trackerDomain: null,
-    trackerEnteredAt: null
-  });
+  await chrome.storage.session.set({ trackerDomain: null, trackerEnteredAt: null });
 
   chrome.alarms.create(ALARM_NAME, { periodInMinutes: ALARM_PERIOD_MINUTES });
   await recordActivity();
-  console.log(`[FlowOS] Session started: "${goal}" (${plannedDuration} min)`);
+  console.log(`[FlowOS] Session started: "${goal}" mode=${mode} allowlist=${allowlistDomain}`);
 }
 
 async function endSession() {
@@ -138,16 +194,14 @@ async function endSession() {
 
   session.endTime = Date.now();
 
-  // Close the last open event
   const lastEvent = session.events[session.events.length - 1];
   if (lastEvent && !lastEvent.duration) {
     lastEvent.duration = Date.now() - lastEvent.timestamp;
   }
 
-  // BUG 3 FIX: compute siteLog from events (accurate, no module variable dependency)
   session.siteLog = computeSiteLogFromEvents(session.events);
 
-  // Merge session siteLog into global log
+  // Merge into global log
   const globalSiteLog = data.globalSiteLog || {};
   for (const [domain, entry] of Object.entries(session.siteLog)) {
     if (!globalSiteLog[domain]) {
@@ -178,11 +232,10 @@ async function endSession() {
     }
   } catch (_) {}
 
-  console.log(`[FlowOS] Session ended. Focus ratio: ${(session.stats.focusRatio * 100).toFixed(1)}%`);
+  console.log(`[FlowOS] Session ended. Focus: ${(session.stats.focusRatio * 100).toFixed(1)}%`);
   return session;
 }
 
-// Feature 1 + 2: GET_STATUS includes idle + app monitor state
 async function getStatus() {
   const data = await chrome.storage.local.get(['sessionActive', 'currentSession']);
   return {
@@ -202,38 +255,31 @@ async function recordActivity() {
     'sessionActive', 'currentSession', 'settings', 'globalSiteLog'
   ]);
 
-  // Always update globalSiteLog even outside sessions
-  const globalSiteLog = data.globalSiteLog || {};
   const domains = data.settings?.distractionDomains || DISTRACTION_DOMAINS;
+  const globalSiteLog = data.globalSiteLog || {};
 
-  // 1. Get active tab
+  // 1. Active tab
   let activeTab;
   try {
     const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
     activeTab = tab;
-  } catch (err) {
-    return;
-  }
+  } catch { return; }
   if (!activeTab?.url) return;
+  if (activeTab.url.startsWith('chrome://') || activeTab.url.startsWith('chrome-extension://')) return;
 
-  // 2. Extract domain
+  // 2. Domain
   let domain = '';
   try {
     domain = new URL(activeTab.url).hostname.replace(/^www\./, '');
-  } catch {
-    domain = 'unknown';
-  }
+  } catch { domain = 'unknown'; }
 
-  // ─── Feature 3b: Global site log (BUG 4 FIX) ─────────────
-  // Use chrome.storage.session to persist tracker state across
-  // SW restarts (session storage survives restarts unlike module vars)
+  // 3. Global site log (Feature B — persists always)
+  const now = Date.now();
   const sessionState = await chrome.storage.session.get(['trackerDomain', 'trackerEnteredAt']);
   const trackerDomain = sessionState.trackerDomain || null;
   const trackerEnteredAt = sessionState.trackerEnteredAt || null;
-  const now = Date.now();
 
   if (trackerDomain !== domain) {
-    // Domain changed — flush previous domain into global log
     if (trackerDomain && trackerEnteredAt) {
       const spent = now - trackerEnteredAt;
       if (spent > 0 && trackerDomain !== 'unknown') {
@@ -246,64 +292,68 @@ async function recordActivity() {
         globalSiteLog[trackerDomain].lastVisited = now;
       }
     }
-    // Start tracking new domain
     await chrome.storage.session.set({ trackerDomain: domain, trackerEnteredAt: now });
     await chrome.storage.local.set({ globalSiteLog });
   }
 
-  // ─── Session-only logic ────────────────────────────────────
+  // ─── Session-only below ───────────────────────────────
   if (!data.sessionActive || !data.currentSession) return;
   const session = data.currentSession;
 
-  // 3. Check idle state
+  // 4. Bug #5 Fix: idle state
   let idleState = 'active';
   try {
     idleState = await chrome.idle.queryState(IDLE_THRESHOLD_SECONDS);
   } catch {}
 
-  // BUG 5 FIX: If the last event is already idle/locked, don't
-  // re-classify it — just update its running duration and return.
-  // Only chrome.idle.onStateChanged should write idle/locked events.
-  const lastEvent = session.events[session.events.length - 1];
-  if (lastEvent && (lastEvent.type === 'idle' || lastEvent.type === 'locked')) {
-    lastEvent.duration = now - lastEvent.timestamp;
+  // Bug Fix: don't re-classify if already idle — onStateChanged handles it
+  const lastEv = session.events[session.events.length - 1];
+  if (lastEv && (lastEv.type === 'idle' || lastEv.type === 'locked')) {
+    lastEv.duration = now - lastEv.timestamp;
     await chrome.storage.local.set({ currentSession: session });
     return;
   }
 
-  // 3b. App Monitor guard
+  // App Monitor guard
   if (!chromeHasFocus) {
-    if (lastEvent && lastEvent.type !== 'off_chrome') {
-      if (!lastEvent.duration) lastEvent.duration = now - lastEvent.timestamp;
+    if (lastEv && lastEv.type !== 'off_chrome') {
+      if (!lastEv.duration) lastEv.duration = now - lastEv.timestamp;
       session.events.push({ timestamp: now, type: 'off_chrome', domain, duration: 0 });
-    } else if (lastEvent && lastEvent.type === 'off_chrome') {
-      lastEvent.duration = now - lastEvent.timestamp;
+    } else if (lastEv && lastEv.type === 'off_chrome') {
+      lastEv.duration = now - lastEv.timestamp;
     }
     await chrome.storage.local.set({ currentSession: session });
     return;
   }
 
-  // 4. Classify event (only reached if active + in Chrome)
-  const isDistraction = domains.some(d => domain.includes(d));
+  // 5. Feature A: classify based on mode
+  const isAllowlistMode = !!session.allowlistDomain;
+  let isDistraction = false;
   let eventType;
+
   if (idleState === 'locked') {
     eventType = 'locked';
   } else if (idleState === 'idle') {
     eventType = 'idle';
-  } else if (isDistraction) {
-    eventType = 'distraction';
+  } else if (isAllowlistMode) {
+    // In allowlist mode: distraction = anything NOT the allowed domain
+    const allowed = session.allowlistDomain.toLowerCase();
+    isDistraction = !domain.toLowerCase().includes(allowed) && !allowed.includes(domain.toLowerCase());
+    eventType = isDistraction ? 'distraction' : 'focus';
   } else {
-    eventType = 'focus';
+    // Blocklist mode (default)
+    isDistraction = domains.some(d => domain.includes(d));
+    eventType = isDistraction ? 'distraction' : 'focus';
   }
 
-  // 5. Tab switch detection
-  const domainChanged = lastEvent && lastEvent.domain !== domain;
-  if (domainChanged && lastEvent) {
-    if (!lastEvent.duration) lastEvent.duration = now - lastEvent.timestamp;
+  // 6. Tab switch
+  const domainChanged = lastEv && lastEv.domain !== domain;
+  if (domainChanged && lastEv) {
+    if (!lastEv.duration) lastEv.duration = now - lastEv.timestamp;
     session.events.push({ timestamp: now, type: 'tab_switch', domain, duration: 0 });
   }
 
-  // 6. Merge or push event
+  // 7. Merge or push event
   const currentLast = session.events[session.events.length - 1];
   if (currentLast && currentLast.type === eventType && currentLast.domain === domain) {
     currentLast.duration = now - currentLast.timestamp;
@@ -312,22 +362,23 @@ async function recordActivity() {
     session.events.push({ timestamp: now, type: eventType, domain, duration: 0 });
   }
 
-  // 7. Distraction overlay
+  // 8. Distraction overlay
   if (isDistraction && idleState === 'active') {
     try {
       await chrome.tabs.sendMessage(activeTab.id, {
         type: 'DISTRACTION_DETECTED',
         domain,
         sessionGoal: session.goal,
+        allowlistDomain: session.allowlistDomain,
+        isAllowlistMode,
         distractionCount: session.events.filter(e => e.type === 'distraction').length
       });
     } catch (_) {}
   }
 
-  // 8. Auto-end safety valve (2x planned)
+  // 9. Auto-end safety valve
   const elapsedMin = (now - session.startTime) / 60000;
   if (elapsedMin > session.plannedDuration * 2) {
-    console.log('[FlowOS] Session auto-ended (exceeded 2x planned duration)');
     await endSession();
     return;
   }
@@ -335,9 +386,50 @@ async function recordActivity() {
   await chrome.storage.local.set({ currentSession: session });
 }
 
-// ─── Feature 3: Compute siteLog from events (BUG 2+3 FIX) ──
-// Derives site time from the events array — no module variables,
-// no incremental accumulation — always accurate.
+// ─── Feature B: Ambient Tracker ─────────────────────────────
+// Records site visits even outside sessions (last 2 hours)
+
+async function recordAmbientActivity() {
+  const now = Date.now();
+  const twoHoursAgo = now - TWO_HOURS_MS;
+
+  let activeTab;
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    activeTab = tab;
+  } catch { return; }
+
+  if (!activeTab?.url) return;
+  if (activeTab.url.startsWith('chrome://') || activeTab.url.startsWith('chrome-extension://')) return;
+
+  let domain = '';
+  try {
+    domain = new URL(activeTab.url).hostname.replace(/^www\./, '');
+  } catch { return; }
+  if (!domain || domain === 'newtab') return;
+
+  const isDistractionSite = DISTRACTION_DOMAINS.some(d => domain.includes(d));
+  const data = await chrome.storage.local.get(['ambientLog']);
+  let log = (data.ambientLog || []).filter(e => e.timestamp > twoHoursAgo);
+
+  const lastEntry = log[log.length - 1];
+  if (lastEntry && lastEntry.domain === domain) {
+    lastEntry.duration = now - lastEntry.timestamp;
+  } else {
+    if (lastEntry) lastEntry.duration = now - lastEntry.timestamp;
+    log.push({
+      timestamp: now,
+      domain,
+      url: activeTab.url,
+      duration: 0,
+      isDistraction: isDistractionSite,
+    });
+  }
+
+  await chrome.storage.local.set({ ambientLog: log });
+}
+
+// ─── Site Log from Events (accurate, no module vars) ─────────
 
 function computeSiteLogFromEvents(events) {
   const log = {};
@@ -346,11 +438,8 @@ function computeSiteLogFromEvents(events) {
     if (event.type !== 'focus' && event.type !== 'distraction') continue;
     const dur = event.duration || 0;
     if (dur <= 0) continue;
-    const category = DISTRACTION_DOMAINS.some(d => event.domain.includes(d))
-      ? 'distraction' : 'work';
-    if (!log[event.domain]) {
-      log[event.domain] = { totalMs: 0, visits: 0, category };
-    }
+    const category = DISTRACTION_DOMAINS.some(d => event.domain.includes(d)) ? 'distraction' : 'work';
+    if (!log[event.domain]) log[event.domain] = { totalMs: 0, visits: 0, category };
     log[event.domain].totalMs += dur;
     log[event.domain].visits += 1;
   }
@@ -361,12 +450,8 @@ function computeSiteLogFromEvents(events) {
 
 function computeSessionStats(session) {
   const events = session.events;
-  let realFocusTime = 0;
-  let distractionTime = 0;
-  let idleTime = 0;
-  let totalIdleMs = 0;
-  let totalOffChromeMs = 0;
-  let tabSwitches = 0;
+  let realFocusTime = 0, distractionTime = 0, idleTime = 0;
+  let totalIdleMs = 0, totalOffChromeMs = 0, tabSwitches = 0;
   const distractorMap = {};
   const recoveryTimes = [];
   let lastDistractionEnd = null;
@@ -384,28 +469,13 @@ function computeSessionStats(session) {
       case 'distraction':
         distractionTime += dur;
         lastDistractionEnd = event.timestamp + dur;
-        if (event.domain) {
-          distractorMap[event.domain] = (distractorMap[event.domain] || 0) + dur;
-        }
+        if (event.domain) distractorMap[event.domain] = (distractorMap[event.domain] || 0) + dur;
         break;
-      case 'idle':
-        idleTime += dur;
-        totalIdleMs += dur;
-        break;
-      case 'locked':
-        idleTime += dur;
-        totalIdleMs += dur;
-        break;
-      case 'off_chrome':
-        idleTime += dur;
-        totalOffChromeMs += dur;
-        break;
-      case 'tab_switch':
-        tabSwitches++;
-        break;
-      case 'returned':
-      case 'returned_to_chrome':
-      case 'return':
+      case 'idle': idleTime += dur; totalIdleMs += dur; break;
+      case 'locked': idleTime += dur; totalIdleMs += dur; break;
+      case 'off_chrome': idleTime += dur; totalOffChromeMs += dur; break;
+      case 'tab_switch': tabSwitches++; break;
+      case 'returned': case 'returned_to_chrome': case 'return':
         if (lastDistractionEnd !== null) {
           recoveryTimes.push(event.timestamp - lastDistractionEnd);
           lastDistractionEnd = null;
@@ -415,28 +485,19 @@ function computeSessionStats(session) {
   }
 
   const totalPlannedMs = session.plannedDuration * 60 * 1000;
-  const focusRatio = totalPlannedMs > 0
-    ? Math.min(realFocusTime / totalPlannedMs, 1.0) : 0;
-
+  const focusRatio = totalPlannedMs > 0 ? Math.min(realFocusTime / totalPlannedMs, 1.0) : 0;
   const topDistractors = Object.entries(distractorMap)
     .map(([domain, ms]) => ({ domain, seconds: Math.round(ms / 1000) }))
     .sort((a, b) => b.seconds - a.seconds)
     .slice(0, 5);
-
   const avgRecoveryTime = recoveryTimes.length > 0
     ? recoveryTimes.reduce((s, t) => s + t, 0) / recoveryTimes.length : 0;
 
   return {
-    realFocusTime,
-    distractionTime,
-    idleTime,
-    totalIdleMs,
-    totalOffChromeMs,
+    realFocusTime, distractionTime, idleTime,
+    totalIdleMs, totalOffChromeMs,
     offChromeTime: totalOffChromeMs,
-    tabSwitches,
-    avgRecoveryTime,
-    focusRatio,
-    topDistractors
+    tabSwitches, avgRecoveryTime, focusRatio, topDistractors
   };
 }
 
@@ -444,17 +505,20 @@ function computeSessionStats(session) {
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === ALARM_NAME) recordActivity();
+  if (alarm.name === AMBIENT_ALARM_NAME) recordAmbientActivity();
 });
 
 chrome.tabs.onActivated.addListener(async () => {
   const data = await chrome.storage.local.get(['sessionActive']);
   if (data.sessionActive) recordActivity();
+  recordAmbientActivity();
 });
 
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
   if (changeInfo.url) {
     const data = await chrome.storage.local.get(['sessionActive']);
     if (data.sessionActive) recordActivity();
+    recordAmbientActivity();
   }
 });
 
@@ -471,24 +535,20 @@ chrome.idle.onStateChanged.addListener(async (newState) => {
     idleSince = now;
 
     if (session) {
-      // Close the current event, push idle/locked event
       const lastEvent = session.events[session.events.length - 1];
       if (lastEvent && !lastEvent.duration) lastEvent.duration = now - lastEvent.timestamp;
       session.events.push({ type: newState, timestamp: now, idleState: newState, duration: 0 });
       await chrome.storage.local.set({ currentSession: session });
 
       chrome.notifications.create(`flowos-${newState}`, {
-        type: 'basic',
-        iconUrl: 'icons/icon48.png',
+        type: 'basic', iconUrl: 'icons/icon48.png',
         title: newState === 'locked' ? 'FlowOS — Screen locked' : 'FlowOS — Still there?',
         message: newState === 'locked'
           ? `Session "${session.goal}" is paused while your screen is locked.`
           : `Your session "${session.goal}" is paused while you're away.`,
-        priority: newState === 'locked' ? 2 : 1,
-        silent: false,
+        priority: newState === 'locked' ? 2 : 1, silent: false,
       });
     }
-
   } else if (newState === 'active') {
     const awayMs = idleSince ? now - idleSince : 0;
     isIdle = false;
@@ -498,7 +558,6 @@ chrome.idle.onStateChanged.addListener(async (newState) => {
     chrome.notifications.clear('flowos-locked');
 
     if (session && awayMs > 5000) {
-      // Close the idle/locked event
       const lastEvent = session.events[session.events.length - 1];
       if (lastEvent && (lastEvent.type === 'idle' || lastEvent.type === 'locked') && !lastEvent.duration) {
         lastEvent.duration = now - lastEvent.timestamp;
@@ -507,16 +566,12 @@ chrome.idle.onStateChanged.addListener(async (newState) => {
       await chrome.storage.local.set({ currentSession: session });
 
       const awaySec = Math.round(awayMs / 1000);
-      const label = awaySec >= 60
-        ? `${Math.floor(awaySec / 60)}m ${awaySec % 60}s` : `${awaySec}s`;
-
+      const label = awaySec >= 60 ? `${Math.floor(awaySec / 60)}m ${awaySec % 60}s` : `${awaySec}s`;
       chrome.notifications.create('flowos-return', {
-        type: 'basic',
-        iconUrl: 'icons/icon48.png',
+        type: 'basic', iconUrl: 'icons/icon48.png',
         title: 'FlowOS — Welcome back',
         message: `Session resuming. You were away for ${label}.`,
-        priority: 1,
-        silent: true,
+        priority: 1, silent: true,
       });
     }
 
@@ -539,17 +594,14 @@ chrome.windows.onFocusChanged.addListener(async (windowId) => {
   const lastEvent = session.events[session.events.length - 1];
 
   if (!chromeHasFocus) {
-    console.log('[FlowOS] App Monitor: Chrome lost focus');
     if (lastEvent && !lastEvent.duration) lastEvent.duration = now - lastEvent.timestamp;
     session.events.push({ type: 'off_chrome', timestamp: now, duration: 0, domain: null });
   } else {
-    const offChromeDurationMs = lastEvent?.type === 'off_chrome'
-      ? now - lastEvent.timestamp : 0;
-    console.log(`[FlowOS] App Monitor: Chrome regained focus (away ${Math.round(offChromeDurationMs / 1000)}s)`);
+    const offMs = lastEvent?.type === 'off_chrome' ? now - lastEvent.timestamp : 0;
     if (lastEvent && lastEvent.type === 'off_chrome' && !lastEvent.duration) {
       lastEvent.duration = now - lastEvent.timestamp;
     }
-    session.events.push({ type: 'returned_to_chrome', timestamp: now, durationMs: offChromeDurationMs, duration: 0, domain: null });
+    session.events.push({ type: 'returned_to_chrome', timestamp: now, durationMs: offMs, duration: 0, domain: null });
     recordActivity();
   }
 

@@ -87,7 +87,7 @@ function computeStats(
       ? recoveryTimes.reduce((a, b) => a + b, 0) / recoveryTimes.length
       : 0;
 
-  return { realFocusTime, distractionTime, idleTime, tabSwitches, avgRecoveryTime, focusRatio, topDistractors };
+  return { realFocusTime, distractionTime, idleTime, offChromeTime: 0, tabSwitches, avgRecoveryTime, focusRatio, topDistractors };
 }
 
 function makeSession(

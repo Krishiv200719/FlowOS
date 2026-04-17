@@ -3,10 +3,11 @@ import { useEffect, useState } from 'react';
 import { useSessionContext } from '../../context/SessionContext';
 
 const navItems = [
-  { path: '/',        label: 'Home',         abbr: '01' },
-  { path: '/mirror',  label: 'Last Session',  abbr: '02' },
-  { path: '/dna',     label: 'Focus DNA',     abbr: '03' },
-  { path: '/history', label: 'History',       abbr: '04' },
+  { path: '/',        label: 'Home',           abbr: '01' },
+  { path: '/mirror',  label: 'Last Session',    abbr: '02' },
+  { path: '/dna',     label: 'Focus DNA',       abbr: '03' },
+  { path: '/history', label: 'History',         abbr: '04' },
+  { path: '/activity',label: 'Last 2 Hours',    abbr: '05' },
 ];
 
 function ShortcutModal({ onClose }: { onClose: () => void }) {

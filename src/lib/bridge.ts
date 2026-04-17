@@ -3,7 +3,9 @@
 // Communicates with bridge.js content script via postMessage
 // ═══════════════════════════════════════════════════════════
 
-import type { FocusSession } from '../types';
+import type { FocusSession, AmbientEntry } from '../types';
+
+export type { AmbientEntry };
 
 const pendingRequests = new Map<
   string,
@@ -20,14 +22,12 @@ window.addEventListener('message', (event) => {
 
   const { action, requestId, data, success, error } = event.data;
 
-  // Bridge announced itself
   if (action === 'BRIDGE_READY') {
     bridgeDetected = true;
     console.log('[FlowOS] Extension bridge detected.');
     return;
   }
 
-  // Resolve pending request
   const pending = pendingRequests.get(requestId);
   if (pending) {
     pendingRequests.delete(requestId);
@@ -69,11 +69,7 @@ function sendBridgeMessage<T = any>(
     });
 
     window.postMessage(
-      {
-        source: 'flowos-dashboard',
-        action,
-        requestId,
-      },
+      { source: 'flowos-dashboard', action, requestId },
       '*'
     );
   });
@@ -81,14 +77,8 @@ function sendBridgeMessage<T = any>(
 
 // ─── Public API ───────────────────────────────────────────
 
-/**
- * Check if the FlowOS extension bridge is available.
- * Returns true if the extension content script is injected.
- */
 export async function isExtensionConnected(): Promise<boolean> {
-  // If bridge already announced itself, quick check
   if (bridgeDetected) return true;
-
   try {
     await sendBridgeMessage('PING', 1000);
     bridgeDetected = true;
@@ -98,17 +88,10 @@ export async function isExtensionConnected(): Promise<boolean> {
   }
 }
 
-/**
- * Fetch all completed sessions from chrome.storage.local
- * via the extension bridge.
- */
 export async function getExtensionSessions(): Promise<FocusSession[]> {
   return sendBridgeMessage<FocusSession[]>('GET_SESSIONS');
 }
 
-/**
- * Get current session status from the extension.
- */
 export async function getExtensionStatus(): Promise<{
   sessionActive: boolean;
   currentSession: FocusSession | null;
@@ -120,9 +103,6 @@ export async function getExtensionStatus(): Promise<{
   return sendBridgeMessage('GET_STATUS');
 }
 
-/** Feature 3d — Site Time Tracker
- * Returns per-session siteLog + persistent globalSiteLog.
- */
 export async function getSiteLog(): Promise<{
   siteLog: Record<string, { totalMs: number; visits: number; category: string; lastVisited?: number }>;
   globalSiteLog: Record<string, { totalMs: number; visits: number; category: string; lastVisited?: number }>;
@@ -130,7 +110,11 @@ export async function getSiteLog(): Promise<{
   return sendBridgeMessage('GET_SITE_LOG', 3000);
 }
 
-/** Feature 3d — Reset the global site log. */
 export async function clearGlobalSiteLog(): Promise<void> {
   await sendBridgeMessage('CLEAR_GLOBAL_SITE_LOG', 3000);
+}
+
+/** Feature B: Get last 2 hours of ambient browser activity */
+export async function getAmbientLog(): Promise<AmbientEntry[]> {
+  return sendBridgeMessage<AmbientEntry[]>('GET_AMBIENT_LOG', 3000);
 }

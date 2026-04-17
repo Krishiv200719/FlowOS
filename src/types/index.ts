@@ -53,6 +53,8 @@ export interface FocusSession {
   endTime: number;
   plannedDuration: number;      // minutes
   goal: string;
+  allowlistDomain?: string | null; // Feature A: null = blocklist mode, string = allowlist mode
+  mode?: 'blocklist' | 'allowlist'; // Feature A
   events: SessionEvent[];
   siteLog?: Record<string, SiteLogEntry>; // Feature 3a: per-session site time
   stats: SessionStats;
@@ -80,4 +82,13 @@ export interface AIInsights {
   tomorrowWindow: string;
   weeklyTrend: 'improving' | 'declining' | 'stable';
   coachMessage: string;
+}
+
+/** Feature B: One ambient activity entry (site visited, not in session) */
+export interface AmbientEntry {
+  timestamp: number;
+  domain: string;
+  url: string;
+  duration: number; // ms spent on this domain entry
+  isDistraction: boolean;
 }

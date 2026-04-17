@@ -1,19 +1,24 @@
 // ═══════════════════════════════════════════════════════════
 // FlowOS — Content Script: Focus Guardian
-// Injects gentle nudge overlays when distraction is detected
+// Injects nudge overlays + handles Allowlist Mode banners
 // ═══════════════════════════════════════════════════════════
 
 (() => {
-  // State
+  // ─── State ─────────────────────────────────────────────
   let guardianBanner = null;
   let reentryModal = null;
   let distractionStartTime = null;
   let snoozeUntil = 0;
   let isShowingOverlay = false;
 
-  const GUARDIAN_THRESHOLD_MS = 90 * 1000;  // Show after 90 seconds on distraction
-  const SNOOZE_DURATION_MS = 120 * 1000;    // "2 more min" snooze
-  const REENTRY_THRESHOLD = 3;              // Show re-entry modal after 3 distractions
+  // Allowlist mode state (Feature A)
+  let currentIsAllowlistMode = false;
+  let currentAllowlistDomain = null;
+
+  const GUARDIAN_THRESHOLD_MS = 90 * 1000;  // 90s for blocklist mode
+  const ALLOWLIST_THRESHOLD_MS = 45 * 1000; // 45s for allowlist mode
+  const SNOOZE_DURATION_MS = 120 * 1000;
+  const REENTRY_THRESHOLD = 3;
 
   // ─── Message Handler ────────────────────────────────────
 
@@ -30,26 +35,26 @@
 
   // ─── Distraction Logic ──────────────────────────────────
 
-  function handleDistraction({ domain, sessionGoal, distractionCount }) {
-    // Respect snooze
+  function handleDistraction({ domain, sessionGoal, distractionCount, isAllowlistMode, allowlistDomain }) {
+    currentIsAllowlistMode = isAllowlistMode || false;
+    currentAllowlistDomain = allowlistDomain || null;
+
     if (Date.now() < snoozeUntil) return;
 
-    // Start timing if just arrived
     if (!distractionStartTime) {
       distractionStartTime = Date.now();
     }
 
     const elapsed = Date.now() - distractionStartTime;
+    const threshold = currentIsAllowlistMode ? ALLOWLIST_THRESHOLD_MS : GUARDIAN_THRESHOLD_MS;
 
-    // Wait for threshold before showing anything
-    if (elapsed < GUARDIAN_THRESHOLD_MS) return;
+    if (elapsed < threshold) return;
 
-    // Decide: banner or re-entry modal
-    if (distractionCount >= REENTRY_THRESHOLD && !reentryModal) {
+    if (distractionCount >= REENTRY_THRESHOLD && !reentryModal && !currentIsAllowlistMode) {
       removeGuardianBanner();
       showReentryModal(sessionGoal);
     } else if (!guardianBanner && !reentryModal) {
-      showGuardianBanner(domain, elapsed, sessionGoal);
+      showGuardianBanner(domain, elapsed, sessionGoal, currentIsAllowlistMode, currentAllowlistDomain);
     } else if (guardianBanner) {
       updateBannerTime(domain, elapsed);
     }
@@ -57,11 +62,19 @@
 
   // ─── Guardian Banner ────────────────────────────────────
 
-  function showGuardianBanner(domain, elapsedMs) {
+  function showGuardianBanner(domain, elapsedMs, sessionGoal, isAllowlistMode, allowlistDomain) {
     if (guardianBanner || isShowingOverlay) return;
     isShowingOverlay = true;
 
     const timeText = formatDuration(elapsedMs);
+
+    const bannerMessage = isAllowlistMode
+      ? `You left <strong class="flowos-domain">${escapeHtml(allowlistDomain)}</strong> ${timeText} ago. Your session is waiting there.`
+      : `You've been on <strong class="flowos-domain">${escapeHtml(domain)}</strong> for ${timeText}. Your session is waiting.`;
+
+    const backButtonText = isAllowlistMode
+      ? `Back to ${escapeHtml(allowlistDomain)} 💪`
+      : "I'm back 💪";
 
     guardianBanner = document.createElement('div');
     guardianBanner.id = 'flowos-guardian-banner';
@@ -70,17 +83,14 @@
       <div class="flowos-banner-inner">
         <div class="flowos-banner-left">
           <span class="flowos-banner-pulse"></span>
-          <span class="flowos-banner-icon">⚡</span>
+          <span class="flowos-banner-icon">${isAllowlistMode ? '🎯' : '⚡'}</span>
           <span class="flowos-banner-text">
-            <strong>FlowOS</strong> — You've been on
-            <strong class="flowos-domain">${escapeHtml(domain)}</strong>
-            for <span id="flowos-elapsed-time">${timeText}</span>.
-            Your session is waiting.
+            <strong>FlowOS</strong> — ${bannerMessage}
           </span>
         </div>
         <div class="flowos-banner-actions">
           <button id="flowos-btn-back" class="flowos-btn flowos-btn-primary">
-            I'm back 💪
+            ${backButtonText}
           </button>
           <button id="flowos-btn-snooze" class="flowos-btn flowos-btn-secondary">
             2 more min
@@ -91,14 +101,12 @@
 
     document.documentElement.appendChild(guardianBanner);
 
-    // Animate in
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         guardianBanner?.classList.add('flowos-visible');
       });
     });
 
-    // Wire buttons
     document.getElementById('flowos-btn-back')?.addEventListener('click', onBackToWork);
     document.getElementById('flowos-btn-snooze')?.addEventListener('click', onSnooze);
   }
@@ -169,12 +177,9 @@
       });
     });
 
-    // Wire interactions
     document.getElementById('flowos-reentry-submit')?.addEventListener('click', onReentrySubmit);
     document.getElementById('flowos-reentry-input')?.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && e.target.value.trim()) {
-        onReentrySubmit();
-      }
+      if (e.key === 'Enter' && e.target.value.trim()) onReentrySubmit();
     });
   }
 
@@ -194,7 +199,17 @@
   function onBackToWork() {
     removeGuardianBanner();
     distractionStartTime = null;
-    navigateBack();
+
+    if (currentIsAllowlistMode && currentAllowlistDomain) {
+      // Navigate back to the allowed site (Feature A5)
+      chrome.runtime.sendMessage({
+        type: 'FOCUS_BACK_TO_ALLOWLIST',
+        allowlistDomain: currentAllowlistDomain
+      });
+    } else {
+      // Bug #4 Fix: send message to background to switch tabs
+      chrome.runtime.sendMessage({ type: 'FOCUS_BACK_TO_WORK' });
+    }
   }
 
   function onSnooze() {
@@ -206,13 +221,7 @@
   function onReentrySubmit() {
     removeReentryModal();
     distractionStartTime = null;
-    navigateBack();
-  }
-
-  function navigateBack() {
-    if (window.history.length > 1) {
-      window.history.back();
-    }
+    chrome.runtime.sendMessage({ type: 'FOCUS_BACK_TO_WORK' });
   }
 
   // ─── Cleanup ────────────────────────────────────────────
@@ -225,7 +234,6 @@
     isShowingOverlay = false;
   }
 
-  // Reset timer when user navigates away naturally
   window.addEventListener('beforeunload', () => {
     distractionStartTime = null;
   });
@@ -236,15 +244,13 @@
     const totalSeconds = Math.floor(ms / 1000);
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
-    if (minutes >= 1) {
-      return `${minutes} min ${seconds > 0 ? seconds + 's' : ''}`.trim();
-    }
+    if (minutes >= 1) return `${minutes} min ${seconds > 0 ? seconds + 's' : ''}`.trim();
     return `${seconds}s`;
   }
 
   function escapeHtml(str) {
     const div = document.createElement('div');
-    div.textContent = str;
+    div.textContent = str || '';
     return div.innerHTML;
   }
 })();

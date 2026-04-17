@@ -1,6 +1,7 @@
 // ═══════════════════════════════════════════════════════════
 // FlowOS — Popup Controller
-// Manages start/end session UI + live timer
+// Features: session start/end, allowlist mode (Feature A),
+// natural language goal parser (Addendum)
 // ═══════════════════════════════════════════════════════════
 
 (() => {
@@ -28,6 +29,86 @@
 
   let timerInterval = null;
 
+  // ─── Feature A: Mode State ──────────────────────────────
+  let currentMode = 'blocklist'; // 'blocklist' | 'allowlist'
+
+  // ─── Natural Language Goal Parser (Addendum) ────────────
+
+  const SITE_MAP_POPUP = [
+    { keywords: ['youtube', 'yt', 'watch video', 'watching video', 'watching yt', 'watch yt'], domain: 'youtube.com', name: 'YouTube' },
+    { keywords: ['netflix'], domain: 'netflix.com', name: 'Netflix' },
+    { keywords: ['twitch', 'stream', 'streaming'], domain: 'twitch.tv', name: 'Twitch' },
+    { keywords: ['notion', 'notion page'], domain: 'notion.so', name: 'Notion' },
+    { keywords: ['github', 'pull request', 'pr review', 'code review'], domain: 'github.com', name: 'GitHub' },
+    { keywords: ['stackoverflow', 'stack overflow'], domain: 'stackoverflow.com', name: 'Stack Overflow' },
+    { keywords: ['leetcode', 'leet code', 'coding problem', 'dsa', 'algorithms'], domain: 'leetcode.com', name: 'LeetCode' },
+    { keywords: ['figma', 'designing in figma'], domain: 'figma.com', name: 'Figma' },
+    { keywords: ['google docs', 'gdocs', 'writing doc'], domain: 'docs.google.com', name: 'Google Docs' },
+    { keywords: ['google sheets', 'sheets', 'spreadsheet'], domain: 'sheets.google.com', name: 'Google Sheets' },
+    { keywords: ['coursera'], domain: 'coursera.org', name: 'Coursera' },
+    { keywords: ['udemy'], domain: 'udemy.com', name: 'Udemy' },
+    { keywords: ['wikipedia', 'wiki'], domain: 'wikipedia.org', name: 'Wikipedia' },
+    { keywords: ['medium'], domain: 'medium.com', name: 'Medium' },
+    { keywords: ['reddit'], domain: 'reddit.com', name: 'Reddit' },
+    { keywords: ['twitter', 'tweets'], domain: 'twitter.com', name: 'Twitter/X' },
+    { keywords: ['instagram'], domain: 'instagram.com', name: 'Instagram' },
+    { keywords: ['gmail', 'email', 'inbox'], domain: 'gmail.com', name: 'Gmail' },
+    { keywords: ['slack'], domain: 'slack.com', name: 'Slack' },
+    { keywords: ['discord'], domain: 'discord.com', name: 'Discord' },
+    { keywords: ['linear'], domain: 'linear.app', name: 'Linear' },
+    { keywords: ['jira'], domain: 'jira.atlassian.com', name: 'Jira' },
+    { keywords: ['trello'], domain: 'trello.com', name: 'Trello' },
+    { keywords: ['asana'], domain: 'asana.com', name: 'Asana' },
+    { keywords: ['canva'], domain: 'canva.com', name: 'Canva' },
+    { keywords: ['framer'], domain: 'framer.com', name: 'Framer' },
+    { keywords: ['replit'], domain: 'replit.com', name: 'Replit' },
+    { keywords: ['airtable'], domain: 'airtable.com', name: 'Airtable' },
+    { keywords: ['duolingo', 'language learning'], domain: 'duolingo.com', name: 'Duolingo' },
+    { keywords: ['brilliant'], domain: 'brilliant.org', name: 'Brilliant' },
+    { keywords: ['khan academy', 'khanacademy'], domain: 'khanacademy.org', name: 'Khan Academy' },
+    { keywords: ['hackerrank', 'hacker rank'], domain: 'hackerrank.com', name: 'HackerRank' },
+    { keywords: ['adobe', 'photoshop', 'illustrator'], domain: 'adobe.com', name: 'Adobe' },
+    { keywords: ['substack'], domain: 'substack.com', name: 'Substack' },
+    { keywords: ['arxiv', 'research paper'], domain: 'arxiv.org', name: 'arXiv' },
+    { keywords: ['amazon'], domain: 'amazon.com', name: 'Amazon' },
+    { keywords: ['shopify'], domain: 'shopify.com', name: 'Shopify' },
+    { keywords: ['dribbble'], domain: 'dribbble.com', name: 'Dribbble' },
+  ];
+
+  const ALLOWLIST_VERBS = ['watch', 'watching', 'study on', 'studying on', 'using', 'focus on',
+    'working on', 'working in', 'read on', 'reading on', 'browse', 'browsing',
+    'practice on', 'learn on', 'learning on', 'course on', 'design in',
+    'designing in', 'code on', 'coding on'];
+
+  function parseGoalForDomain(goalText) {
+    if (!goalText || goalText.trim().length < 3) return null;
+    const lower = goalText.toLowerCase().trim();
+    const directMatch = lower.match(/([a-z0-9-]+\.(com|org|io|so|app|tv|net|edu|dev|md))\b/i);
+    if (directMatch) {
+      const domain = directMatch[0].toLowerCase();
+      const found = SITE_MAP_POPUP.find(s => s.domain.toLowerCase() === domain || s.domain.includes(domain));
+      return { domain, name: found?.name ?? domain };
+    }
+    let best = null; let bestLen = 0;
+    for (const site of SITE_MAP_POPUP) {
+      for (const kw of site.keywords) {
+        const esc = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        if (new RegExp(`\\b${esc}\\b`, 'i').test(lower) && kw.length > bestLen) {
+          bestLen = kw.length;
+          best = { domain: site.domain, name: site.name };
+        }
+      }
+    }
+    return best;
+  }
+
+  function goalSuggestsAllowlist(goalText) {
+    const parsed = parseGoalForDomain(goalText);
+    if (!parsed) return false;
+    const lower = goalText.toLowerCase();
+    return ALLOWLIST_VERBS.some(v => lower.includes(v));
+  }
+
   // ─── Initialize ─────────────────────────────────────────
 
   init();
@@ -36,10 +117,11 @@
     setGreeting();
     setupSlider();
     setupPresets();
+    setupFocusMode();      // Feature A
+    setupGoalAutoDetect(); // Addendum
     setupStartButton();
     setupEndButton();
 
-    // Check if there's an active session
     try {
       const response = await sendMessage({ type: 'GET_STATUS' });
       if (response?.sessionActive && response?.currentSession) {
@@ -51,6 +133,90 @@
       console.error('[FlowOS Popup] Error checking status:', err);
       showIdleView();
     }
+  }
+
+  // ─── Feature A: Focus Mode Setup ────────────────────────
+
+  function setupFocusMode() {
+    const modeBlocklist = document.getElementById('modeBlocklist');
+    const modeAllowlist = document.getElementById('modeAllowlist');
+    const allowlistGroup = document.getElementById('allowlistGroup');
+
+    modeBlocklist.addEventListener('click', () => {
+      currentMode = 'blocklist';
+      modeBlocklist.classList.add('active');
+      modeAllowlist.classList.remove('active');
+      allowlistGroup.style.display = 'none';
+    });
+
+    modeAllowlist.addEventListener('click', () => {
+      currentMode = 'allowlist';
+      modeAllowlist.classList.add('active');
+      modeBlocklist.classList.remove('active');
+      allowlistGroup.style.display = 'block';
+      // Auto-fill from goal if parser has a match
+      const parsed = parseGoalForDomain(goalInput.value);
+      if (parsed) {
+        const inp = document.getElementById('allowlistInput');
+        if (inp && !inp.value) inp.value = parsed.domain;
+      }
+      document.getElementById('allowlistInput')?.focus();
+    });
+  }
+
+  // ─── Addendum: Goal Auto-Detect ──────────────────────────
+
+  function setupGoalAutoDetect() {
+    const banner = document.getElementById('flowos-suggestion-banner');
+    let shown = false;
+
+    goalInput.addEventListener('input', () => {
+      const text = goalInput.value;
+      const parsed = parseGoalForDomain(text);
+      const suggests = goalSuggestsAllowlist(text);
+
+      // If already in allowlist mode, auto-fill domain
+      if (currentMode === 'allowlist' && parsed) {
+        const inp = document.getElementById('allowlistInput');
+        if (inp && !inp.value) {
+          inp.value = parsed.domain;
+          inp.style.borderColor = '#00F5FF';
+          setTimeout(() => { inp.style.borderColor = ''; }, 1500);
+        }
+        hideBanner(banner);
+        shown = false;
+        return;
+      }
+
+      // In blocklist mode: show suggestion banner
+      if (currentMode === 'blocklist' && parsed && suggests && !shown) {
+        showBanner(banner, parsed.name, parsed.domain);
+        shown = true;
+      } else if (!parsed || !suggests) {
+        hideBanner(banner);
+        shown = false;
+      }
+    });
+  }
+
+  function showBanner(banner, siteName, domain) {
+    banner.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+        <span style="color:#888;">🎯 Looks like you're focusing on <strong style="color:#00F5FF;">${siteName}</strong></span>
+        <button id="switchToAllowlist" style="background:rgba(0,245,255,0.1);border:1px solid rgba(0,245,255,0.3);border-radius:4px;color:#00F5FF;font-size:10px;font-family:'JetBrains Mono',monospace;padding:4px 8px;cursor:pointer;white-space:nowrap;">Use Allowlist →</button>
+      </div>
+    `;
+    banner.style.display = 'block';
+    document.getElementById('switchToAllowlist')?.addEventListener('click', () => {
+      document.getElementById('modeAllowlist')?.click();
+      const inp = document.getElementById('allowlistInput');
+      if (inp) inp.value = domain;
+      hideBanner(banner);
+    });
+  }
+
+  function hideBanner(banner) {
+    if (banner) banner.style.display = 'none';
   }
 
   // ─── Greeting ───────────────────────────────────────────
@@ -125,6 +291,12 @@
         return;
       }
 
+      // Feature A: gather allowlist domain
+      const allowlistRaw = document.getElementById('allowlistInput')?.value.trim() ?? '';
+      const allowlistDomain = currentMode === 'allowlist' && allowlistRaw
+        ? allowlistRaw.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0].toLowerCase()
+        : null;
+
       startBtn.disabled = true;
       startBtn.textContent = 'STARTING...';
 
@@ -132,11 +304,12 @@
         const response = await sendMessage({
           type: 'START_SESSION',
           goal: goal,
-          plannedDuration: duration
+          plannedDuration: duration,
+          allowlistDomain: allowlistDomain,  // Feature A
+          mode: currentMode,                  // Feature A
         });
 
         if (response?.success) {
-          // Re-fetch to get the full session object
           const status = await sendMessage({ type: 'GET_STATUS' });
           if (status?.currentSession) {
             showActiveView(status.currentSession);
@@ -195,8 +368,23 @@
     activeView.style.display = 'block';
     statusDot.classList.add('active');
 
-    // Set goal
     activeGoal.textContent = session.goal || '—';
+
+    // Feature A: show mode indicator badge
+    const modeIndicator = document.getElementById('modeIndicator');
+    if (modeIndicator) {
+      if (session.allowlistDomain) {
+        modeIndicator.textContent = `🎯 ALLOWLIST: ${session.allowlistDomain}`;
+        modeIndicator.style.color = '#00F5FF';
+        modeIndicator.style.borderColor = 'rgba(0,245,255,0.3)';
+        modeIndicator.classList.add('visible');
+      } else {
+        modeIndicator.textContent = '🛡️ BLOCKLIST: distraction sites flagged';
+        modeIndicator.style.color = '#888888';
+        modeIndicator.style.borderColor = '#1C1C1C';
+        modeIndicator.classList.add('visible');
+      }
+    }
 
     // Set planned time
     const plannedMin = session.plannedDuration || 30;

@@ -7,6 +7,7 @@ import Home from './screens/Home';
 import Mirror from './screens/Mirror';
 import DNA from './screens/DNA';
 import History from './screens/History';
+import Activity from './screens/Activity';
 
 function AppRoutes() {
   const { sessions } = useSessionContext();
@@ -30,6 +31,7 @@ function AppRoutes() {
           <Route path="/mirror/:sessionId" element={<Mirror key="mirror-detail" />} />
           <Route path="/dna" element={<DNA key="dna" />} />
           <Route path="/history" element={<History key="history" />} />
+          <Route path="/activity" element={<Activity key="activity" />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AnimatePresence>

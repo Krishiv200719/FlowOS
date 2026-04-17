@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════
 // FlowOS — Session Context
 // Single source of truth for session data across all screens.
-// Always uses REAL data from the extension only.
+// Falls back to mock data when extension is not connected.
 // ═══════════════════════════════════════════════════════════
 
 import {
@@ -14,6 +14,7 @@ import {
 } from 'react';
 import type { FocusSession } from '../types';
 import { isExtensionConnected, getExtensionSessions } from '../lib/bridge';
+import { mockSessions as MOCK } from '../data/mockSessions';
 
 interface SessionContextValue {
   sessions: FocusSession[];
@@ -47,18 +48,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           setSessions(extSessions);
           console.log(`[FlowOS] ${extSessions.length} real sessions loaded from extension.`);
         } else {
-          // Extension connected but no sessions recorded yet
-          setSessions([]);
-          console.log('[FlowOS] Extension connected — no sessions yet.');
+          // Extension connected but no sessions yet — show mock for demo
+          setSessions(MOCK);
+          console.log('[FlowOS] Extension connected but no sessions yet — using mock data.');
         }
       } else {
-        // Extension not installed / not connected
-        setSessions([]);
-        console.log('[FlowOS] Extension not detected.');
+        // No extension — always show mock data so app is never blank
+        setSessions(MOCK);
+        console.log('[FlowOS] Extension not detected — using mock data.');
       }
     } catch (err) {
-      console.warn('[FlowOS] Bridge error:', err);
-      setSessions([]);
+      console.warn('[FlowOS] Bridge error, using mock data:', err);
+      setSessions(MOCK);
     } finally {
       setLoading(false);
     }
