@@ -15,7 +15,15 @@ function ShortcutModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-[200] flex items-end justify-start pb-6 pl-6" onClick={onClose}>
       <div className="bg-[#111111] border border-[#2A2A2A] rounded-lg p-4 shadow-2xl w-56" onClick={(e) => e.stopPropagation()}>
         <p className="text-[10px] font-mono uppercase tracking-widest text-flow-cyan mb-3">Keyboard Shortcuts</p>
-        {[ ['1', 'Home'], ['2', 'Last Session'], ['3', 'Focus DNA'], ['4', 'History'], ['N', 'New Session'], ['?', 'This panel'] ].map(([key, label]) => (
+        {[
+          ['1', 'Home'],
+          ['2', 'Last Session'],
+          ['3', 'Focus DNA'],
+          ['4', 'History'],
+          ['5', 'Last 2 Hours'],
+          ['N', 'New Session'],
+          ['?', 'This panel']
+        ].map(([key, label]) => (
           <div key={key} className="flex items-center justify-between mb-2">
             <span className="text-[10px] font-mono text-flow-muted">{label}</span>
             <kbd className="text-[9px] font-mono text-white bg-[#1C1C1C] border border-[#333] rounded px-1.5 py-0.5">{key}</kbd>
@@ -55,6 +63,7 @@ export default function Sidebar() {
       if (e.key === '2') navigate('/mirror');
       if (e.key === '3') navigate('/dna');
       if (e.key === '4') navigate('/history');
+      if (e.key === '5') navigate('/activity');
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);

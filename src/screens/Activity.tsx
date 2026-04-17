@@ -45,6 +45,115 @@ function getLocalFallback(log: AmbientEntry[]): string {
   return `Your last 2 hours look mostly productive — ${min} minutes on distraction sites. That's under control.\n\nKeep the momentum. Start a focus session to lock in the next 60 minutes.`;
 }
 
+// ─── Groq AI Section Renderer ───────────────────────────────
+// Parses structured AI text into styled section cards
+
+const SECTION_CONFIG: Record<string, { icon: string; color: string; bg: string }> = {
+  'VERDICT':               { icon: '⚡', color: '#FF6B35', bg: 'rgba(255,107,53,0.06)' },
+  'WHAT THE DATA SHOWS':   { icon: '📊', color: '#00F5FF', bg: 'rgba(0,245,255,0.05)' },
+  'YOUR FOCUS PATTERN':    { icon: '🔁', color: '#9D6AFF', bg: 'rgba(157,106,255,0.05)' },
+  'WHERE THE TIME REALLY WENT': { icon: '🕰️', color: '#FF3B3B', bg: 'rgba(255,59,59,0.05)' },
+  'ROOT CAUSE':            { icon: '🎯', color: '#FF6B35', bg: 'rgba(255,107,53,0.06)' },
+  'YOUR NEXT 60 MINUTES — DO THIS NOW': { icon: '✅', color: '#00D46A', bg: 'rgba(0,212,106,0.06)' },
+  'FOCUS FORECAST':        { icon: '🔮', color: '#00F5FF', bg: 'rgba(0,245,255,0.05)' },
+};
+
+function GroqInsightRenderer({ text }: { text: string }) {
+  // Parse sections from the structured text
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const sections: Array<{ title: string; lines: string[] }> = [];
+  let current: { title: string; lines: string[] } | null = null;
+
+  for (const line of lines) {
+    // Detect section headers (ends with : and is all uppercase or in config)
+    const headerMatch = Object.keys(SECTION_CONFIG).find(k => line.toUpperCase().startsWith(k));
+    if (headerMatch || (line.endsWith(':') && line.length < 50 && line === line.toUpperCase())) {
+      if (current) sections.push(current);
+      const title = headerMatch ?? line.replace(':', '').trim();
+      const rest = headerMatch ? line.slice(headerMatch.length).replace(/^:\s*/, '').trim() : '';
+      current = { title, lines: rest ? [rest] : [] };
+    } else if (current) {
+      current.lines.push(line);
+    } else {
+      // Content before first header — preamble
+      if (!sections.find(s => s.title === '_preamble')) {
+        sections.unshift({ title: '_preamble', lines: [] });
+      }
+      sections[0].lines.push(line);
+    }
+  }
+  if (current) sections.push(current);
+
+  if (sections.length === 0) {
+    // Fallback: plain text
+    return (
+      <div className="px-5 py-4 bg-[#0D0D0D] border border-[#1C1C1C] rounded-lg">
+        <p className="text-sm text-white leading-relaxed whitespace-pre-line">{text}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2 pb-1">
+        <div className="w-1.5 h-1.5 rounded-full bg-flow-cyan" />
+        <span className="text-[10px] font-mono uppercase tracking-widest text-flow-cyan">
+          Groq AI — LLaMA 3.3 70B — Activity Analysis
+        </span>
+      </div>
+      {sections.map((section, i) => {
+        if (section.title === '_preamble') return null;
+        const cfg = SECTION_CONFIG[section.title] ?? { icon: '—', color: '#888', bg: 'rgba(136,136,136,0.04)' };
+        const isActions = section.title.includes('NEXT 60');
+        const actionItems = isActions
+          ? section.lines.filter(l => /^\d+\./.test(l))
+          : [];
+        const bodyLines = isActions
+          ? section.lines.filter(l => !/^\d+\./.test(l))
+          : section.lines;
+
+        return (
+          <motion.div
+            key={section.title}
+            className="rounded-lg px-4 py-4 border"
+            style={{ background: cfg.bg, borderColor: `${cfg.color}22` }}
+            initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-sm">{cfg.icon}</span>
+              <span className="text-[9px] font-mono uppercase tracking-widest" style={{ color: cfg.color }}>
+                {section.title}
+              </span>
+            </div>
+
+            {bodyLines.map((line, j) => (
+              <p key={j} className="text-sm text-white/90 leading-relaxed mb-1">{line}</p>
+            ))}
+
+            {actionItems.length > 0 && (
+              <div className="space-y-2 mt-2">
+                {actionItems.map((item, j) => {
+                  const text = item.replace(/^\d+\.\s*/, '');
+                  return (
+                    <div key={j} className="flex items-start gap-3 px-3 py-2.5 rounded-md"
+                      style={{ background: 'rgba(0,212,106,0.08)', border: '1px solid rgba(0,212,106,0.12)' }}>
+                      <span className="text-[10px] font-mono font-bold text-flow-green mt-0.5 flex-shrink-0">
+                        {j + 1}
+                      </span>
+                      <p className="text-sm text-white/90 leading-relaxed">{text}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </motion.div>
+        );
+      })}
+    </div>
+  );
+}
+
+
 export default function Activity() {
   const { extensionConnected } = useSessionContext();
   const [log, setLog] = useState<AmbientEntry[]>([]);
@@ -229,7 +338,7 @@ export default function Activity() {
       {/* AI Analysis */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-xs font-mono uppercase tracking-widest text-flow-muted">Gemini AI Coach</h3>
+          <h3 className="text-xs font-mono uppercase tracking-widest text-flow-muted">Groq AI Coach</h3>
           {!insights && (
             <button onClick={analyzeWithAI} disabled={insightsLoading}
               className="text-[10px] font-mono text-flow-cyan border border-dashed border-flow-cyan/30 rounded px-3 py-1.5 hover:bg-flow-cyan/5 transition-colors disabled:opacity-40">
@@ -239,29 +348,40 @@ export default function Activity() {
         </div>
 
         {insightsLoading && (
-          <div className="px-5 py-6 bg-[#0D0D0D] border border-[#1C1C1C] rounded-lg flex items-center gap-3">
-            <div className="w-4 h-4 border-2 border-flow-cyan border-t-transparent rounded-full animate-spin" />
-            <span className="text-xs text-flow-cyan font-mono">Gemini AI is analyzing your last 2 hours...</span>
+          <div className="px-5 py-8 bg-[#0D0D0D] border border-[#1C1C1C] rounded-lg">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-4 h-4 border-2 border-flow-cyan border-t-transparent rounded-full animate-spin" />
+              <span className="text-xs text-flow-cyan font-mono">Groq LLaMA 3.3 70B is analyzing your session...</span>
+            </div>
+            <div className="space-y-2">
+              {['Mapping your context-switching patterns...', 'Identifying focus drains...', 'Building your action plan...'].map((step, i) => (
+                <div key={step} className="flex items-center gap-2">
+                  <div className="w-1 h-1 rounded-full bg-flow-cyan/40" />
+                  <span className="text-[10px] font-mono text-[#444]" style={{ animationDelay: `${i * 0.3}s` }}>{step}</span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
         {insights && (
           <motion.div
-            className="rounded-lg px-5 py-5"
-            style={{ background: '#0D1118', border: '1px solid rgba(0,245,255,0.12)', borderLeft: '3px solid #00F5FF' }}
             initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+            className="space-y-3"
           >
-            <p className="text-[10px] font-mono uppercase tracking-widest text-flow-cyan mb-3">Gemini AI — Activity Analysis</p>
-            <p className="text-sm text-white leading-relaxed whitespace-pre-line">{insights}</p>
-            <button onClick={analyzeWithAI} className="mt-4 text-[10px] font-mono text-flow-cyan hover:underline">↻ Re-analyze</button>
+            <GroqInsightRenderer text={insights} />
+            <button onClick={analyzeWithAI}
+              className="text-[10px] font-mono text-flow-cyan/50 hover:text-flow-cyan transition-colors">
+              ↻ Re-analyze with Groq AI
+            </button>
           </motion.div>
         )}
 
         {!insights && !insightsLoading && (
-          <div className="px-5 py-4 bg-[#0D0D0D] border border-[#1C1C1C] rounded-lg">
-            <p className="text-xs text-[#444] font-mono">
-              Click "Analyze My Activity" to get Gemini AI coaching on your last 2 hours.
-              It will tell you exactly what to do to get back into focus.
+          <div className="px-5 py-5 bg-[#0D0D0D] border border-[#1C1C1C] rounded-lg">
+            <p className="text-xs text-[#333] font-mono leading-relaxed">
+              Groq AI (LLaMA 3.3 70B) will analyze your exact browsing patterns — context switches, focus streaks,
+              distraction costs — and give you a personalized action plan.
             </p>
           </div>
         )}

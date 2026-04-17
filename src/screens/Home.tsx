@@ -45,6 +45,7 @@ export default function Home() {
       if (e.key === '2') navigate('/mirror');
       if (e.key === '3') navigate('/dna');
       if (e.key === '4') navigate('/history');
+      if (e.key === '5') navigate('/activity');
       if (e.key === 'n') setShowModal(true);
     };
     window.addEventListener('keydown', handler);
