@@ -8,9 +8,9 @@
     "idle",
     "storage",
     "scripting",
-    "alarms",
-    "activeTab"
+    "alarms"
   ],
+  "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"
   },
@@ -22,7 +22,13 @@
       "run_at": "document_idle"
     },
     {
-      "matches": ["http://localhost:5173/*", "http://localhost:5174/*"],
+      "matches": [
+        "http://localhost/*",
+        "http://127.0.0.1/*",
+        "https://*.vercel.app/*",
+        "https://*.netlify.app/*",
+        "https://*.github.io/*"
+      ],
       "js": ["bridge.js"],
       "run_at": "document_start"
     }

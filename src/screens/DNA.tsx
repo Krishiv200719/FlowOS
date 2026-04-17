@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useSessionContext } from '../context/SessionContext';
 import { getAIInsights } from '../lib/gemini';
+import { saveInsights, getInsights } from '../lib/db';
 import { getHourlyHeatmap } from '../lib/patterns';
 import { getDailyScores } from '../lib/scoring';
 import type { AIInsights } from '../types';
@@ -22,20 +23,27 @@ export default function DNA() {
   const [insightsError, setInsightsError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (sessionsLoading) return;
-
-    if (sessions.length < 3) {
-      setInsightsLoading(false);
-      return;
-    }
+    if (sessionsLoading || sessions.length < 3) return;
 
     setInsightsLoading(true);
     setInsightsError(null);
 
-    getAIInsights(sessions)
-      .then((data) => {
-        setInsights(data);
-        setInsightsError(null);
+    // 1. Try cache first
+    getInsights()
+      .then((cached) => {
+        if (cached) {
+          console.log('[FlowOS] Loaded insights from cache.');
+          setInsights(cached);
+          setInsightsLoading(false);
+          return;
+        }
+        // 2. Cache miss — call Gemini
+        return getAIInsights(sessions)
+          .then((data) => {
+            setInsights(data);
+            // 3. Persist to IndexedDB cache
+            return saveInsights(data);
+          });
       })
       .catch((err) => {
         console.error('[FlowOS] AI insights error:', err);
@@ -53,32 +61,6 @@ export default function DNA() {
           Loading sessions...
         </div>
       </div>
-    );
-  }
-
-  // ─── No Extension ─────────────────────────────────────
-  if (!extensionConnected) {
-    return (
-      <motion.div
-        variants={pageVariants}
-        initial="initial"
-        animate="animate"
-        exit="exit"
-        transition={{ duration: 0.3 }}
-        className="flex flex-col items-center justify-center h-[60vh] space-y-5"
-      >
-        <span className="text-5xl">🔌</span>
-        <p className="text-xl font-bold text-white">Extension Not Connected</p>
-        <p className="text-sm text-flow-muted text-center max-w-sm">
-          Install and enable the FlowOS Chrome extension, then reload this page
-          to see your Focus DNA.
-        </p>
-        <div className="card-dashed px-5 py-3">
-          <p className="text-xs text-flow-very-muted font-mono">
-            chrome://extensions → Load unpacked → select extension/ folder
-          </p>
-        </div>
-      </motion.div>
     );
   }
 
@@ -130,14 +112,35 @@ export default function DNA() {
       transition={{ duration: 0.3 }}
       className="space-y-8"
     >
-      {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold text-white">YOUR FOCUS DNA</h2>
-        <p className="text-sm text-flow-muted mt-1">
-          Gemini-powered analysis of your{' '}
-          <span className="font-mono text-flow-cyan">{sessions.length}</span>{' '}
-          recorded sessions
-        </p>
+      {/* Header + Refresh Button */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-white">YOUR FOCUS DNA</h2>
+          <p className="text-sm text-flow-muted mt-1">
+            Gemini-powered analysis of your{' '}
+            <span className="font-mono text-flow-cyan">{sessions.length}</span>{' '}
+            recorded sessions
+          </p>
+        </div>
+        <button
+          onClick={async () => {
+            setInsightsLoading(true);
+            setInsightsError(null);
+            try {
+              const fresh = await getAIInsights(sessions);
+              setInsights(fresh);
+              await saveInsights(fresh);
+            } catch (err: any) {
+              setInsightsError(err.message);
+            } finally {
+              setInsightsLoading(false);
+            }
+          }}
+          disabled={insightsLoading}
+          className="text-[10px] font-mono text-flow-cyan border border-dashed border-flow-cyan/30 rounded px-3 py-1.5 hover:bg-flow-cyan/5 transition-colors disabled:opacity-40"
+        >
+          ↻ Refresh Analysis
+        </button>
       </div>
 
       {/* Heatmap */}
@@ -204,6 +207,15 @@ export default function DNA() {
 
       {/* Weekly Trend */}
       <TrendSparkline data={dailyScores} />
+
+      {/* Demo mode banner */}
+      {!extensionConnected && (
+        <div className="flex items-center gap-3 px-4 py-3 border border-dashed border-[#2A2A2A] rounded-lg">
+          <span className="text-[10px] font-mono text-flow-very-muted">
+            ○ DEMO MODE — Install the Chrome extension to track real sessions
+          </span>
+        </div>
+      )}
     </motion.div>
   );
 }
