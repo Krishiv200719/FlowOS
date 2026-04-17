@@ -255,12 +255,24 @@
     }
 
     let focusMs = 0;
+    let distractionMs = 0;
+    let idleMs = 0;
     let switches = 0;
+    const now = Date.now();
+    const lastIdx = session.events.length - 1;
 
-    for (const event of session.events) {
-      const dur = event.duration || 0;
+    for (let i = 0; i < session.events.length; i++) {
+      const event = session.events[i];
+      // BUG 1 FIX: for the running (last) event, estimate elapsed
+      // since it started — this eliminates the 30s jump
+      const dur = (i === lastIdx)
+        ? Math.max(event.duration || 0, now - event.timestamp)
+        : (event.duration || 0);
+
       if (event.type === 'focus') focusMs += dur;
-      if (event.type === 'tab_switch') switches++;
+      else if (event.type === 'distraction') distractionMs += dur;
+      else if (event.type === 'idle' || event.type === 'locked') idleMs += dur;
+      else if (event.type === 'tab_switch') switches++;
     }
 
     const focusMin = Math.round(focusMs / 60000);
@@ -287,16 +299,21 @@
 
   // ─── Refresh live stats periodically ────────────────────
 
+  // BUG 1 FIX: poll every 2s (was 5s) so focus meter feels live
   setInterval(async () => {
     if (activeView.style.display !== 'none') {
       try {
         const status = await sendMessage({ type: 'GET_STATUS' });
         if (status?.currentSession) {
           updateLiveStats(status.currentSession);
+        } else {
+          // Session ended externally — switch back to idle view
+          stopTimer();
+          showIdleView();
         }
       } catch (_) {}
     }
-  }, 5000);
+  }, 2000);
 
   // ─── Chrome Message Helper ──────────────────────────────
 
