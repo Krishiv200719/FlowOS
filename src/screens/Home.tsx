@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useSessionContext } from '../context/SessionContext';
-import { computeScoreForSessions, computeStreak } from '../lib/scoring';
+import { computeDailyScore, computeScoreForSessions, computeStreak } from '../lib/scoring';
 import { getOptimalWindow, getLocalInsight } from '../lib/patterns';
 import FocusScore from '../components/home/FocusScore';
 import StreakCard from '../components/home/StreakCard';
@@ -107,7 +107,15 @@ export default function Home() {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning.' : hour < 17 ? 'Good afternoon.' : 'Good evening.';
 
-  const score = computeScoreForSessions(sessions.slice(0, 3));
+  // Score: prefer today's daily score; fall back to recent sessions score
+  const dailyScore = computeDailyScore(sessions);
+  const score = dailyScore > 0 ? dailyScore : computeScoreForSessions(
+    sessions.filter(s => {
+      const d = new Date(s.startTime);
+      const n = new Date();
+      return Math.abs(n.getTime() - d.getTime()) < 7 * 86400000;
+    }).slice(0, 5)
+  );
   const streak = computeStreak(sessions);
   const optimalWindow = getOptimalWindow(sessions);
   const dailyInsight = sessions.length >= 2 ? getLocalInsight(sessions) : '';

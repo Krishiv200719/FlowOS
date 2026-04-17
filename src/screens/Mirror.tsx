@@ -63,14 +63,17 @@ export default function Mirror() {
     );
   }
 
-  // UPGRADE #1: Session tabs — default to worst session
-  // Sort sessions for tab display (last 5 by recency)
+  // UPGRADE #1: Session tabs — only show sessions with meaningful goals
   const recentSessions = [...sessions]
+    .filter(s => s.goal.length > 10)  // filter out test sessions with garbage goals
     .sort((a, b) => b.startTime - a.startTime)
     .slice(0, 5);
 
   // Determine active session: selectedSession → sessionId param → worst session
-  const worstSession = sessions.reduce((worst, s) =>
+  // For demo quality: prefer worst session with a meaningful goal (>10 chars)
+  const meaningfulSessions = sessions.filter(s => s.goal.length > 10);
+  const poolForWorst = meaningfulSessions.length > 0 ? meaningfulSessions : sessions;
+  const worstSession = poolForWorst.reduce((worst, s) =>
     s.stats.focusRatio < worst.stats.focusRatio ? s : worst
   );
 

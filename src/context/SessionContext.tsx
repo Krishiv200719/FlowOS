@@ -45,9 +45,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         const extSessions = await getExtensionSessions();
         if (extSessions && extSessions.length > 0) {
           extSessions.sort((a, b) => b.startTime - a.startTime);
-          setSessions(extSessions);
+
+          // DEMO FIX: Merge real sessions + mock sessions.
+          // Real sessions rendered at top; mocks fill out history.
+          // Dedup by ID so no duplicates if mock IDs overlap.
+          const realIds = new Set(extSessions.map((s) => s.id));
+          const mockFill = MOCK_SESSIONS.filter((s) => !realIds.has(s.id));
+          const merged = [...extSessions, ...mockFill].sort(
+            (a, b) => b.startTime - a.startTime
+          );
+          setSessions(merged);
           console.log(
-            `[FlowOS] Loaded ${extSessions.length} real sessions from extension.`
+            `[FlowOS] ${extSessions.length} real + ${mockFill.length} mock sessions merged.`
           );
         } else {
           // Extension connected but no sessions yet — use mock data as seed

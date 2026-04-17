@@ -24,10 +24,15 @@ export async function getAIInsights(sessions: FocusSession[]): Promise<AIInsight
     hourOfDay: new Date(s.startTime).getHours(),
   }));
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+  const response = await fetch('/api/claude', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      // Key + version forwarded by Vite proxy (vite.config.ts)
+      // but also include here as fallback for production deployments
+      'x-api-key': import.meta.env.VITE_ANTHROPIC_API_KEY ?? '',
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',

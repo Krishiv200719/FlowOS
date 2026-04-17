@@ -25,7 +25,10 @@ export default function History() {
     );
   }
 
-  const sorted = [...sessions].sort((a, b) => b.startTime - a.startTime);
+  // Filter out test sessions with garbage goal names (< 10 chars)
+  const sorted = [...sessions]
+    .filter(s => s.goal.length > 10)
+    .sort((a, b) => b.startTime - a.startTime);
 
   if (sorted.length === 0) {
     return (
