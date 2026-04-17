@@ -175,45 +175,6 @@ The screen **never shows an error or blank state**. Local fallback always fires.
 
 ---
 
-## 📁 Project Structure
-
-```
-FlowOS/
-│
-├── extension/                  # Chrome Extension (MV3)
-│   ├── background.js           # Core engine — tracking, scoring, storage
-│   ├── popup.html / popup.js   # Live focus meter + session start UI
-│   ├── content.js              # Distraction overlay injection
-│   ├── bridge.js               # Dashboard ↔ Extension message relay
-│   ├── blocked.html            # Soft block page for distraction sites
-│   └── manifest.json           # Extension permissions + entry points
-│
-└── src/                        # React Dashboard
-    ├── screens/
-    │   ├── Home.tsx             # Focus Score ring + streak calendar
-    │   ├── Mirror.tsx           # Session timeline + stats breakdown
-    │   ├── DNA.tsx              # AI insights + focus heatmap
-    │   ├── Activity.tsx         # Live activity + distraction chart
-    │   └── History.tsx          # All sessions log
-    │
-    ├── lib/
-    │   ├── scoring.ts           # Focus Score formula
-    │   ├── patterns.ts          # Hourly aggregation for heatmap
-    │   ├── activityInsights.ts  # Real-time activity analysis
-    │   ├── goalParser.ts        # NLP goal → task classification
-    │   ├── groq.ts              # Groq API client (LLaMA 3.3 70B)
-    │   ├── bridge.ts            # Dashboard side of Extension Bridge
-    │   └── db.ts                # IndexedDB cache layer
-    │
-    └── components/
-        ├── dna/                 # Heatmap + sparkline + DNA card
-        ├── home/                # Score ring + streak + session modal
-        ├── mirror/              # Timeline + distraction chart + stats
-        └── layout/              # Sidebar + shell
-```
-
----
-
 ## 🔑 The One Insight That Drives Everything
 
 > **Each distraction costs more than just the distraction itself.**
