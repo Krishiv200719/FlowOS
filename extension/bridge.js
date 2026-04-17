@@ -27,15 +27,26 @@
             'sessionActive',
             'currentSession',
           ]);
-          respond(
-            requestId,
-            action,
-            {
-              sessionActive: data.sessionActive || false,
-              currentSession: data.currentSession || null,
-            },
-            true
-          );
+          respond(requestId, action, {
+            sessionActive: data.sessionActive || false,
+            currentSession: data.currentSession || null,
+          }, true);
+          break;
+        }
+
+        // Feature 3: site time tracker
+        case 'GET_SITE_LOG': {
+          const data = await chrome.storage.local.get(['currentSession', 'globalSiteLog']);
+          respond(requestId, action, {
+            siteLog: data.currentSession?.siteLog || {},
+            globalSiteLog: data.globalSiteLog || {},
+          }, true);
+          break;
+        }
+
+        case 'CLEAR_GLOBAL_SITE_LOG': {
+          await chrome.storage.local.set({ globalSiteLog: {} });
+          respond(requestId, action, { success: true }, true);
           break;
         }
 

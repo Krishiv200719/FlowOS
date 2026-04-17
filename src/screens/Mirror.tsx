@@ -6,6 +6,7 @@ import SessionTimeline from '../components/mirror/SessionTimeline';
 import StatsGrid from '../components/mirror/StatsGrid';
 import DistractionChart from '../components/mirror/DistractionChart';
 import TopDistractors from '../components/mirror/TopDistractors';
+import SiteTimeTracker from '../components/mirror/SiteTimeTracker';
 import type { FocusSession } from '../types';
 
 const pageVariants = {
@@ -280,6 +281,17 @@ export default function Mirror() {
           </p>
         </motion.div>
       )}
+
+      {/* Feature 3e: Site Time Tracker */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.7 }}
+      >
+        <SiteTimeTracker
+          inlineSiteLog={(activeSession as any).siteLog}
+        />
+      </motion.div>
     </motion.div>
   );
 }

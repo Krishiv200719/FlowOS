@@ -112,6 +112,25 @@ export async function getExtensionSessions(): Promise<FocusSession[]> {
 export async function getExtensionStatus(): Promise<{
   sessionActive: boolean;
   currentSession: FocusSession | null;
+  isIdle: boolean;
+  idleSince: number | null;
+  isInChrome: boolean;
+  offChromeSince: number | null;
 }> {
   return sendBridgeMessage('GET_STATUS');
+}
+
+/** Feature 3d — Site Time Tracker
+ * Returns per-session siteLog + persistent globalSiteLog.
+ */
+export async function getSiteLog(): Promise<{
+  siteLog: Record<string, { totalMs: number; visits: number; category: string; lastVisited?: number }>;
+  globalSiteLog: Record<string, { totalMs: number; visits: number; category: string; lastVisited?: number }>;
+}> {
+  return sendBridgeMessage('GET_SITE_LOG', 3000);
+}
+
+/** Feature 3d — Reset the global site log. */
+export async function clearGlobalSiteLog(): Promise<void> {
+  await sendBridgeMessage('CLEAR_GLOBAL_SITE_LOG', 3000);
 }
