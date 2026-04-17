@@ -315,4 +315,36 @@
       }
     });
   }
+
+  // ─── Test Notification Button ───────────────────────────
+
+  const testNotifBtn = document.getElementById('testNotifBtn');
+  const testNotifResult = document.getElementById('testNotifResult');
+
+  if (testNotifBtn) {
+    testNotifBtn.addEventListener('click', async () => {
+      testNotifBtn.disabled = true;
+      testNotifBtn.textContent = 'sending...';
+      testNotifResult.style.color = '#555';
+      testNotifResult.textContent = '';
+
+      try {
+        const res = await sendMessage({ type: 'TEST_NOTIFICATION' });
+        if (res && res.success) {
+          testNotifResult.style.color = '#00D46A';
+          testNotifResult.textContent = 'ok — check your notifications';
+        } else {
+          testNotifResult.style.color = '#FF3B3B';
+          testNotifResult.textContent = 'failed — reload extension';
+        }
+      } catch (err) {
+        testNotifResult.style.color = '#FF3B3B';
+        testNotifResult.textContent = 'error: ' + err.message;
+      } finally {
+        testNotifBtn.disabled = false;
+        testNotifBtn.textContent = 'test notifications';
+      }
+    });
+  }
+
 })();

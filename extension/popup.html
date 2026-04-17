@@ -401,6 +401,29 @@
       font-family: 'JetBrains Mono', monospace;
     }
 
+    .btn-test-notif {
+      margin-top: 6px;
+      background: none;
+      border: 1px dashed #222;
+      border-radius: 4px;
+      color: #444;
+      font-size: 9px;
+      font-family: 'JetBrains Mono', monospace;
+      padding: 4px 10px;
+      cursor: pointer;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .btn-test-notif:hover {
+      color: #00F5FF;
+      border-color: #00F5FF44;
+    }
+    #testNotifResult {
+      font-size: 9px;
+      font-family: 'JetBrains Mono', monospace;
+      margin-top: 4px;
+      min-height: 12px;
+    }
+
     /* ─── Transitions ──────────────────────────────────── */
     .view {
       animation: fadeIn 0.25s ease;
@@ -557,6 +580,8 @@
 
   <div class="footer">
     <p class="footer-text">your data never leaves your device</p>
+    <button class="btn-test-notif" id="testNotifBtn">test notifications</button>
+    <p id="testNotifResult"></p>
   </div>
 
   <script src="popup.js"></script>

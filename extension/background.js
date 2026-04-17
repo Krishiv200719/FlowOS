@@ -13,13 +13,17 @@ const DISTRACTION_DOMAINS = [
 
 const IDLE_THRESHOLD_SECONDS = 30;
 const ALARM_NAME = 'flowos-activity-tick';
-const ALARM_PERIOD_MINUTES = 0.5; // 30 seconds (MV3 minimum)
+const ALARM_PERIOD_MINUTES = 0.5;
 
 // ─── Layer 1: App Monitor State ─────────────────────────────
-// Tracks whether Chrome itself is the active OS window.
-// When chromeHasFocus = false, the user is in another app.
 let chromeHasFocus = true;
-let offChromeStartTime = null; // when Chrome last lost focus
+let offChromeStartTime = null;
+
+// CRITICAL FIX: Set idle threshold at top level — runs on every
+// service worker restart, not just onInstalled.
+// Without this, MV3 service worker restarts reset it to 60s default.
+chrome.idle.setDetectionInterval(IDLE_THRESHOLD_SECONDS);
+console.log(`[FlowOS] Service worker started. Idle threshold: ${IDLE_THRESHOLD_SECONDS}s`);
 
 // ─── Initialization ─────────────────────────────────────────
 
@@ -61,6 +65,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     case 'GET_COMPLETED_SESSIONS':
       chrome.storage.local.get(['completedSessions'], (data) => {
         sendResponse({ sessions: data.completedSessions || [] });
+      });
+      return true;
+
+    // TEST: fire an instant notification to verify permissions work
+    case 'TEST_NOTIFICATION':
+      chrome.notifications.create('flowos-test', {
+        type: 'basic',
+        iconUrl: 'icons/icon48.png',
+        title: 'FlowOS — Notifications working!',
+        message: 'Idle detector and lock screen alerts are active.',
+        priority: 2,
+      }, () => {
+        sendResponse({ success: !chrome.runtime.lastError });
       });
       return true;
   }
