@@ -5,8 +5,16 @@
 /** A single event during a focus session */
 export interface SessionEvent {
   timestamp: number;
-  type: 'focus' | 'idle' | 'distraction' | 'tab_switch' | 'return';
-  domain?: string;
+  /** focus = deep work in Chrome
+   *  idle = no mouse/keyboard (Idle Detector)
+   *  locked = screen locked (Idle Detector)
+   *  distraction = known distraction domain
+   *  tab_switch = switched to a different tab
+   *  off_chrome = Chrome lost OS focus (App Monitor)
+   *  return = returned to Chrome from another app or distraction
+   */
+  type: 'focus' | 'idle' | 'locked' | 'distraction' | 'tab_switch' | 'off_chrome' | 'return';
+  domain?: string | null;
   duration?: number; // milliseconds
 }
 
@@ -14,7 +22,8 @@ export interface SessionEvent {
 export interface SessionStats {
   realFocusTime: number;        // milliseconds
   distractionTime: number;      // milliseconds
-  idleTime: number;             // milliseconds
+  idleTime: number;             // milliseconds (idle + locked)
+  offChromeTime?: number;       // milliseconds — Layer 1: App Monitor (optional: absent in legacy sessions)
   tabSwitches: number;
   avgRecoveryTime: number;      // milliseconds
   focusRatio: number;           // 0.0 to 1.0

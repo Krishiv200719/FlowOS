@@ -15,11 +15,16 @@ const IDLE_THRESHOLD_SECONDS = 30;
 const ALARM_NAME = 'flowos-activity-tick';
 const ALARM_PERIOD_MINUTES = 0.5; // 30 seconds (MV3 minimum)
 
+// ─── Layer 1: App Monitor State ─────────────────────────────
+// Tracks whether Chrome itself is the active OS window.
+// When chromeHasFocus = false, the user is in another app.
+let chromeHasFocus = true;
+let offChromeStartTime = null; // when Chrome last lost focus
+
 // ─── Initialization ─────────────────────────────────────────
 
 chrome.runtime.onInstalled.addListener(() => {
-  // EXTENSION #3: Set idle detection threshold on install
-  chrome.idle.setDetectionInterval(30); // 30 seconds
+  chrome.idle.setDetectionInterval(IDLE_THRESHOLD_SECONDS);
   chrome.storage.local.set({
     sessionActive: false,
     currentSession: null,
@@ -28,7 +33,7 @@ chrome.runtime.onInstalled.addListener(() => {
       distractionDomains: DISTRACTION_DOMAINS
     }
   });
-  console.log('[FlowOS] Extension installed and initialized.');
+  console.log('[FlowOS] Extension installed — Layer 1 sensors: Idle Detector + App Monitor active.');
 });
 
 // ─── Message Router ─────────────────────────────────────────
@@ -172,7 +177,10 @@ async function recordActivity() {
     domain = 'unknown';
   }
 
-  // 3. Check idle state
+  // 3. Check idle state — chrome.idle reports:
+  //    'active'  = mouse or keyboard used within threshold
+  //    'idle'    = no mouse/keyboard for threshold seconds
+  //    'locked'  = screen is locked
   let idleState = 'active';
   try {
     idleState = await chrome.idle.queryState(IDLE_THRESHOLD_SECONDS);
@@ -180,12 +188,34 @@ async function recordActivity() {
     // idle API might not be available in all contexts
   }
 
+  // 3b. Layer 1 — APP MONITOR: if Chrome doesn't have OS focus,
+  //     treat as off_chrome regardless of idle state
+  if (!chromeHasFocus) {
+    // User is in another app — record off_chrome event
+    const lastEvent = session.events[session.events.length - 1];
+    if (lastEvent && lastEvent.type !== 'off_chrome') {
+      if (!lastEvent.duration) lastEvent.duration = Date.now() - lastEvent.timestamp;
+      session.events.push({
+        timestamp: Date.now(),
+        type: 'off_chrome',
+        domain: domain,
+        duration: 0,
+      });
+    } else if (lastEvent && lastEvent.type === 'off_chrome') {
+      lastEvent.duration = Date.now() - lastEvent.timestamp;
+    }
+    await chrome.storage.local.set({ currentSession: session });
+    return; // don't classify further — user is in another OS app
+  }
+
   // 4. Classify the event
   const isDistraction = domains.some(d => domain.includes(d));
   let eventType;
 
-  if (idleState !== 'active') {
-    eventType = 'idle';
+  if (idleState === 'locked') {
+    eventType = 'locked';   // screen locked — Layer 1: Idle Detector
+  } else if (idleState === 'idle') {
+    eventType = 'idle';     // no mouse/keyboard — Layer 1: Idle Detector
   } else if (isDistraction) {
     eventType = 'distraction';
   } else {
@@ -261,6 +291,7 @@ function computeSessionStats(session) {
   let realFocusTime = 0;
   let distractionTime = 0;
   let idleTime = 0;
+  let offChromeTime = 0;  // Layer 1: App Monitor — time in other OS apps
   let tabSwitches = 0;
   const distractorMap = {};
   const recoveryTimes = [];
@@ -294,6 +325,16 @@ function computeSessionStats(session) {
 
       case 'idle':
         idleTime += dur;
+        break;
+
+      case 'locked':
+        // Screen locked — counts as idle time
+        idleTime += dur;
+        break;
+
+      case 'off_chrome':
+        // User switched to another OS app (VS Code, Slack, etc.)
+        offChromeTime += dur;
         break;
 
       case 'tab_switch':
@@ -330,6 +371,7 @@ function computeSessionStats(session) {
     realFocusTime,
     distractionTime,
     idleTime,
+    offChromeTime,       // Layer 1: App Monitor
     tabSwitches,
     avgRecoveryTime,
     focusRatio,
@@ -364,10 +406,66 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   }
 });
 
-// Idle state change detection
+// Idle state change detection — Layer 1: Idle Detector
+// Fires immediately when user goes idle/active/locked (no polling delay)
 chrome.idle.onStateChanged.addListener(async (newState) => {
+  console.log(`[FlowOS] Idle state changed: ${newState}`);
   const data = await chrome.storage.local.get(['sessionActive']);
   if (data.sessionActive) {
     recordActivity();
   }
+});
+
+// ─── Layer 1: App Monitor ────────────────────────────────────
+// Detects when Chrome loses/gains focus to another OS application.
+// windowId === WINDOW_ID_NONE means all Chrome windows lost focus.
+chrome.windows.onFocusChanged.addListener(async (windowId) => {
+  const hadFocus = chromeHasFocus;
+  chromeHasFocus = (windowId !== chrome.windows.WINDOW_ID_NONE);
+
+  if (hadFocus === chromeHasFocus) return; // no change
+
+  const data = await chrome.storage.local.get(['sessionActive', 'currentSession']);
+  if (!data.sessionActive || !data.currentSession) return;
+
+  const session = data.currentSession;
+  const now = Date.now();
+  const lastEvent = session.events[session.events.length - 1];
+
+  if (!chromeHasFocus) {
+    // Chrome lost OS focus — user switched to another app
+    offChromeStartTime = now;
+    console.log(`[FlowOS] App Monitor: Chrome lost focus (user in other app)`);
+    // Close current event
+    if (lastEvent && !lastEvent.duration) {
+      lastEvent.duration = now - lastEvent.timestamp;
+    }
+    // Record the off_chrome event
+    session.events.push({
+      timestamp: now,
+      type: 'off_chrome',
+      domain: null,
+      duration: 0,
+    });
+  } else {
+    // Chrome regained OS focus
+    const awayMs = offChromeStartTime ? now - offChromeStartTime : 0;
+    offChromeStartTime = null;
+    console.log(`[FlowOS] App Monitor: Chrome regained focus (away ${Math.round(awayMs / 1000)}s)`);
+    // Close the off_chrome event
+    if (lastEvent && lastEvent.type === 'off_chrome' && !lastEvent.duration) {
+      lastEvent.duration = now - lastEvent.timestamp;
+    }
+    // Record a return event
+    session.events.push({
+      timestamp: now,
+      type: 'return',
+      domain: null,
+      duration: 0,
+    });
+  }
+
+  await chrome.storage.local.set({ currentSession: session });
+  // Immediately re-classify current activity
+  recordActivity();
 });
