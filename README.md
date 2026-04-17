@@ -226,24 +226,12 @@ FlowOS/
 
 ---
 
-## 🚀 Environment Setup
 
-Create a `.env` file at the project root:
 
-```env
-VITE_GROQ_API_KEY=your_key_here
-```
-
-Get a free key (no credit card) at **console.groq.com** — free tier is more than enough for Focus DNA.
-
-The dashboard runs on `localhost:5173`. The extension must be loaded in Chrome at `chrome://extensions` with Developer Mode on, pointed at the `/extension` folder.
-
----
-
-## 👥 Built By
+## Built By
 
 **Team FlowOS** — ITM SFT SummerHacks '26
-*Problem Statement 3: The Focus OS*
+*Problem Statement 3(red colur ): The Focus OS*
 
 ---
 
