@@ -10,7 +10,8 @@
     "scripting",
     "alarms",
     "windows",
-    "notifications"
+    "notifications",
+    "webNavigation"
   ],
   "host_permissions": ["<all_urls>"],
   "background": {
@@ -49,7 +50,7 @@
     "128": "icons/icon128.png"
   },
   "web_accessible_resources": [{
-    "resources": ["icons/icon16.png", "icons/icon48.png", "icons/icon128.png"],
+    "resources": ["icons/icon16.png", "icons/icon48.png", "icons/icon128.png", "blocked.html"],
     "matches": ["<all_urls>"]
   }]
 }

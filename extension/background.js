@@ -25,6 +25,7 @@ const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 let chromeHasFocus = true;
 let isIdle = false;
 let idleSince = null;
+let blockSnoozedUntil = 0; // Timestamp until which site blocking is snoozed
 
 // CRITICAL (MV3): set idle threshold at top-level — survives SW restarts
 chrome.idle.setDetectionInterval(IDLE_THRESHOLD_SECONDS);
@@ -147,6 +148,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           chrome.tabs.create({ url: `https://${allowed}` });
         }
       });
+      sendResponse({ success: true });
+      return true;
+
+    case 'SNOOZE_BLOCK':
+      blockSnoozedUntil = Date.now() + ((message.minutes || 5) * 60 * 1000);
+      console.log(`[FlowOS] Block snoozed for ${message.minutes || 5} min`);
       sendResponse({ success: true });
       return true;
 
@@ -362,18 +369,31 @@ async function recordActivity() {
     session.events.push({ timestamp: now, type: eventType, domain, duration: 0 });
   }
 
-  // 8. Distraction overlay
+  // 8. Distraction overlay — send to the distraction tab itself
   if (isDistraction && idleState === 'active') {
+    const msg = {
+      type: 'DISTRACTION_DETECTED',
+      domain,
+      sessionGoal: session.goal,
+      allowlistDomain: session.allowlistDomain,
+      isAllowlistMode,
+      distractionCount: session.events.filter(e => e.type === 'distraction').length
+    };
     try {
-      await chrome.tabs.sendMessage(activeTab.id, {
-        type: 'DISTRACTION_DETECTED',
-        domain,
-        sessionGoal: session.goal,
-        allowlistDomain: session.allowlistDomain,
-        isAllowlistMode,
-        distractionCount: session.events.filter(e => e.type === 'distraction').length
-      });
-    } catch (_) {}
+      await chrome.tabs.sendMessage(activeTab.id, msg);
+    } catch (_) {
+      // Content script not ready yet — inject it dynamically
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: activeTab.id },
+          files: ['content.js']
+        });
+        // Brief wait for script to initialize, then retry
+        setTimeout(async () => {
+          try { await chrome.tabs.sendMessage(activeTab.id, msg); } catch (_) {}
+        }, 200);
+      } catch (_) {}
+    }
   }
 
   // 9. Auto-end safety valve
@@ -514,13 +534,62 @@ chrome.tabs.onActivated.addListener(async () => {
   recordAmbientActivity();
 });
 
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (changeInfo.url) {
+    // ─ Site Blocker: intercept distraction navigation ─────
+    await checkAndBlockTab(tabId, changeInfo.url);
+
     const data = await chrome.storage.local.get(['sessionActive']);
     if (data.sessionActive) recordActivity();
     recordAmbientActivity();
   }
 });
+
+// ─── Site Blocker ───────────────────────────────────────────
+// Redirects distraction sites to blocked.html during blocklist sessions
+
+async function checkAndBlockTab(tabId, url) {
+  if (!url || url.startsWith('chrome-extension://') || url.startsWith('chrome://')) return;
+
+  // Check snooze
+  if (Date.now() < blockSnoozedUntil) return;
+
+  const data = await chrome.storage.local.get(['sessionActive', 'currentSession']);
+  if (!data.sessionActive || !data.currentSession) return;
+
+  const session = data.currentSession;
+  // Only block in blocklist mode
+  if (session.mode === 'allowlist' || session.allowlistDomain) return;
+
+  let domain = '';
+  try {
+    domain = new URL(url).hostname.replace(/^www\./, '');
+  } catch { return; }
+
+  const isDistraction = DISTRACTION_DOMAINS.some(d => domain.includes(d));
+  if (!isDistraction) return;
+
+  // Build blocked page URL with context
+  const blockedUrl = chrome.runtime.getURL('blocked.html') +
+    `?domain=${encodeURIComponent(domain)}` +
+    `&goal=${encodeURIComponent(session.goal)}` +
+    `&start=${session.startTime}`;
+
+  console.log(`[FlowOS] Blocking ${domain} → blocked.html`);
+  try {
+    await chrome.tabs.update(tabId, { url: blockedUrl });
+  } catch (_) {}
+}
+
+// Also intercept via webNavigation for faster response
+chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
+  // Only main frame navigations
+  if (details.frameId !== 0) return;
+  if (!details.url || details.url.startsWith('chrome')) return;
+
+  await checkAndBlockTab(details.tabId, details.url);
+});
+
 
 // ─── Feature 1: Idle Detector ───────────────────────────────
 

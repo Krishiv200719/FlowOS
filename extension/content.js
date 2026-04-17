@@ -15,8 +15,10 @@
   let currentIsAllowlistMode = false;
   let currentAllowlistDomain = null;
 
-  const GUARDIAN_THRESHOLD_MS = 90 * 1000;  // 90s for blocklist mode
-  const ALLOWLIST_THRESHOLD_MS = 45 * 1000; // 45s for allowlist mode
+  // In blocklist mode: hard-blocked via blocked.html, banner shows immediately (0s)
+  // In allowlist mode: soft nudge after 10s away from allowed domain
+  const GUARDIAN_THRESHOLD_MS = 0;           // Immediate for blocklist (hard block is primary)
+  const ALLOWLIST_THRESHOLD_MS = 10 * 1000;  // 10s for allowlist mode
   const SNOOZE_DURATION_MS = 120 * 1000;
   const REENTRY_THRESHOLD = 3;
 

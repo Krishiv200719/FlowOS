@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlowOS — Blocked</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0A0A0A;
+      color: #FFFFFF;
+      font-family: 'Space Grotesk', -apple-system, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      overflow: hidden;
+    }
+
+    /* Subtle radial glow */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse 60% 40% at 50% 20%, rgba(255, 59, 59, 0.06) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .container {
+      max-width: 520px;
+      width: 100%;
+      text-align: center;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Shield icon */
+    .shield {
+      width: 64px;
+      height: 64px;
+      border-radius: 16px;
+      background: rgba(255, 59, 59, 0.1);
+      border: 1px solid rgba(255, 59, 59, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      margin: 0 auto 32px;
+      animation: pulse-red 3s ease-in-out infinite;
+    }
+
+    @keyframes pulse-red {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(255, 59, 59, 0.0); }
+      50% { box-shadow: 0 0 0 12px rgba(255, 59, 59, 0.05); }
+    }
+
+    .blocked-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: #FF3B3B;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      font-size: 36px;
+      font-weight: 700;
+      letter-spacing: -1px;
+      color: #FFFFFF;
+      line-height: 1.1;
+      margin-bottom: 16px;
+    }
+
+    h1 span {
+      color: #FF3B3B;
+    }
+
+    .site-name {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      color: #444;
+      margin-bottom: 32px;
+    }
+
+    /* Session goal card */
+    .goal-card {
+      background: #0D0D0D;
+      border: 1px solid #1C1C1C;
+      border-left: 3px solid #00F5FF;
+      border-radius: 10px;
+      padding: 20px 24px;
+      margin-bottom: 40px;
+      text-align: left;
+    }
+
+    .goal-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #00F5FF;
+      margin-bottom: 8px;
+    }
+
+    .goal-text {
+      font-size: 16px;
+      font-weight: 600;
+      color: #FFFFFF;
+      line-height: 1.4;
+    }
+
+    /* Divider text */
+    .divider {
+      font-size: 12px;
+      color: #333;
+      margin-bottom: 24px;
+      position: relative;
+    }
+
+    .divider::before,
+    .divider::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      width: 30%;
+      height: 1px;
+      background: #1C1C1C;
+    }
+
+    .divider::before { left: 0; }
+    .divider::after { right: 0; }
+
+    /* Buttons */
+    .btn-back {
+      display: block;
+      width: 100%;
+      padding: 16px;
+      background: #00F5FF;
+      color: #0A0A0A;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      font-size: 15px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      letter-spacing: 0.02em;
+      margin-bottom: 12px;
+      transition: all 0.15s ease;
+    }
+
+    .btn-back:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 0 30px rgba(0, 245, 255, 0.3);
+    }
+
+    .btn-back:active {
+      transform: translateY(0);
+    }
+
+    .override-section {
+      margin-top: 32px;
+      padding-top: 24px;
+      border-top: 1px solid #111;
+    }
+
+    .override-label {
+      font-size: 11px;
+      color: #333;
+      margin-bottom: 12px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .override-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-override {
+      flex: 1;
+      padding: 10px;
+      background: transparent;
+      border: 1px solid #1C1C1C;
+      border-radius: 8px;
+      color: #555;
+      font-size: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn-override:hover {
+      border-color: #333;
+      color: #888;
+      background: #111;
+    }
+
+    /* Timer pulse on the page */
+    .session-timer {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: #222;
+      margin-top: 32px;
+      letter-spacing: 0.1em;
+    }
+
+    #timerValue {
+      color: #444;
+    }
+
+    /* Domain chip */
+    .domain-chip {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: #FF3B3B;
+      background: rgba(255, 59, 59, 0.08);
+      border: 1px solid rgba(255, 59, 59, 0.2);
+      border-radius: 4px;
+      padding: 2px 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="shield">🛡️</div>
+    <p class="blocked-label">FlowOS — Blocklist Active</p>
+    <h1>Stay <span>focused.</span></h1>
+    <p class="site-name">
+      <span class="domain-chip" id="blockedDomain">this site</span>
+      is blocked during your session.
+    </p>
+
+    <div class="goal-card">
+      <p class="goal-label">Your current goal</p>
+      <p class="goal-text" id="sessionGoal">Loading...</p>
+    </div>
+
+    <button class="btn-back" id="btnGoBack">← Go back to your work</button>
+
+    <div class="override-section">
+      <p class="override-label">// need a genuine break?</p>
+      <div class="override-buttons">
+        <button class="btn-override" id="btnSnooze5">5 min break</button>
+        <button class="btn-override" id="btnEndSession">End session</button>
+      </div>
+    </div>
+
+    <p class="session-timer">SESSION: <span id="timerValue">—</span></p>
+  </div>
+
+  <script>
+    // Read params from URL
+    const params = new URLSearchParams(location.search);
+    const blockedDomain = params.get('domain') || 'this site';
+    const sessionGoal = params.get('goal') || 'Your focus session';
+    const sessionStart = parseInt(params.get('start') || '0');
+
+    document.getElementById('blockedDomain').textContent = blockedDomain;
+    document.getElementById('sessionGoal').textContent = sessionGoal;
+
+    // Live session timer
+    function updateTimer() {
+      if (!sessionStart) return;
+      const elapsed = Math.floor((Date.now() - sessionStart) / 1000);
+      const m = Math.floor(elapsed / 60);
+      const s = elapsed % 60;
+      document.getElementById('timerValue').textContent =
+        `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+    updateTimer();
+    setInterval(updateTimer, 1000);
+
+    // Go back — navigate to previous page
+    document.getElementById('btnGoBack').addEventListener('click', () => {
+      if (history.length > 1) {
+        history.back();
+      } else {
+        window.close();
+      }
+    });
+
+    // 5-minute snooze — tell background to pause blocking, then go back
+    document.getElementById('btnSnooze5').addEventListener('click', () => {
+      chrome.runtime.sendMessage({ type: 'SNOOZE_BLOCK', minutes: 5 }, () => {
+        if (history.length > 1) history.back();
+        else window.close();
+      });
+    });
+
+    // End session
+    document.getElementById('btnEndSession').addEventListener('click', () => {
+      chrome.runtime.sendMessage({ type: 'END_SESSION' }, () => {
+        if (history.length > 1) history.back();
+        else window.close();
+      });
+    });
+  </script>
+</body>
+</html>
