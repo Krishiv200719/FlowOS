@@ -406,11 +406,72 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   }
 });
 
-// Idle state change detection — Layer 1: Idle Detector
-// Fires immediately when user goes idle/active/locked (no polling delay)
+// ─── Layer 1: Idle Detector — Notifications ──────────────────
+// Fires immediately when user goes idle/active/locked.
+// Shows a Chrome notification so the user knows FlowOS noticed.
+
+let idleStartTime = null; // track when idle/lock started
+
 chrome.idle.onStateChanged.addListener(async (newState) => {
   console.log(`[FlowOS] Idle state changed: ${newState}`);
-  const data = await chrome.storage.local.get(['sessionActive']);
+
+  const data = await chrome.storage.local.get(['sessionActive', 'currentSession']);
+
+  if (newState === 'idle') {
+    idleStartTime = Date.now();
+
+    if (data.sessionActive && data.currentSession) {
+      // Notify: user went idle during a focus session
+      chrome.notifications.create('flowos-idle', {
+        type: 'basic',
+        iconUrl: 'icons/icon48.png',
+        title: 'FlowOS — You went idle',
+        message: `No activity detected. Your session "${data.currentSession.goal}" is paused.`,
+        priority: 1,
+        silent: false,
+      });
+    }
+  } else if (newState === 'locked') {
+    idleStartTime = Date.now();
+
+    if (data.sessionActive && data.currentSession) {
+      // Notify: screen locked during a focus session
+      chrome.notifications.create('flowos-locked', {
+        type: 'basic',
+        iconUrl: 'icons/icon48.png',
+        title: 'FlowOS — Screen locked',
+        message: `Session "${data.currentSession.goal}" is paused while your screen is locked.`,
+        priority: 2,
+        silent: false,
+      });
+    }
+  } else if (newState === 'active') {
+    // User returned — calculate how long they were away
+    const awayMs = idleStartTime ? Date.now() - idleStartTime : 0;
+    idleStartTime = null;
+
+    // Clear any previous idle/lock notifications
+    chrome.notifications.clear('flowos-idle');
+    chrome.notifications.clear('flowos-locked');
+
+    if (data.sessionActive && data.currentSession && awayMs > 5000) {
+      const awaySec = Math.round(awayMs / 1000);
+      const awayLabel = awaySec >= 60
+        ? `${Math.floor(awaySec / 60)}m ${awaySec % 60}s`
+        : `${awaySec}s`;
+
+      chrome.notifications.create('flowos-return', {
+        type: 'basic',
+        iconUrl: 'icons/icon48.png',
+        title: 'FlowOS — Welcome back',
+        message: `You were away for ${awayLabel}. Lock back in: "${data.currentSession.goal}"`,
+        priority: 1,
+        silent: true,
+      });
+    }
+  }
+
+  // Always trigger activity recording on state change
   if (data.sessionActive) {
     recordActivity();
   }
