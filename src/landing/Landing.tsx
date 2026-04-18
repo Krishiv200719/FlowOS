@@ -169,7 +169,7 @@ export default function Landing() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
             <a href="#how" style={{ fontFamily: F.sans, fontSize: 13, color: C.muted, textDecoration: 'none' }}>How it works</a>
             <a href="#features" style={{ fontFamily: F.sans, fontSize: 13, color: C.muted, textDecoration: 'none' }}>Features</a>
-            <a href="/" style={{ fontFamily: F.sans, fontSize: 13, color: C.muted, textDecoration: 'none' }}>Dashboard</a>
+            <a href="/home" style={{ fontFamily: F.sans, fontSize: 13, color: C.muted, textDecoration: 'none' }}>Dashboard</a>
             <a
               href={ghUrl}
               target="_blank" rel="noopener noreferrer"
@@ -579,7 +579,7 @@ export default function Landing() {
               Install from GitHub
             </a>
             <a
-              href="/"
+              href="/home"
               style={{
                 fontFamily: F.sans, fontSize: 14, color: C.muted,
                 padding: '15px 28px',
@@ -613,7 +613,7 @@ export default function Landing() {
           <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
             <a href={ghUrl} target="_blank" rel="noopener noreferrer"
               style={{ fontFamily: F.sans, fontSize: 13, color: C.muted, textDecoration: 'none' }}>GitHub</a>
-            <a href="/"
+            <a href="/home"
               style={{ fontFamily: F.sans, fontSize: 13, color: C.muted, textDecoration: 'none' }}>Dashboard</a>
           </div>
         </div>

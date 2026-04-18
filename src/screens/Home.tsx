@@ -41,7 +41,7 @@ export default function Home() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (e.key === '1') navigate('/');
+      if (e.key === '1') navigate('/home');
       if (e.key === '2') navigate('/mirror');
       if (e.key === '3') navigate('/dna');
       if (e.key === '4') navigate('/history');

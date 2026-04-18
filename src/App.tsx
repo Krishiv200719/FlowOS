@@ -26,13 +26,14 @@ function AppRoutes() {
     <AppShell>
       <AnimatePresence mode="wait">
         <Routes>
-          <Route path="/"                  element={<Home key="home" />} />
+          <Route path="/home"              element={<Home key="home" />} />
           <Route path="/mirror"            element={<Mirror key="mirror" />} />
           <Route path="/mirror/:sessionId" element={<Mirror key="mirror-detail" />} />
           <Route path="/dna"               element={<DNA key="dna" />} />
           <Route path="/history"           element={<History key="history" />} />
           <Route path="/activity"          element={<Activity key="activity" />} />
-          <Route path="*"                  element={<Navigate to="/" replace />} />
+          {/* Any unknown path in app → home */}
+          <Route path="*"                  element={<Navigate to="/home" replace />} />
         </Routes>
       </AnimatePresence>
     </AppShell>
@@ -42,14 +43,18 @@ function AppRoutes() {
 export default function App() {
   return (
     <Routes>
-      {/* Landing — fully standalone, no sidebar, no sessions */}
-      <Route path="/landing" element={<Landing />} />
-      {/* Main dashboard */}
-      <Route path="/*" element={
-        <SessionProvider>
-          <AppRoutes />
-        </SessionProvider>
-      } />
+      {/* Landing page at root — first thing visitors see */}
+      <Route path="/" element={<Landing />} />
+
+      {/* Dashboard — wrapped in SessionProvider */}
+      <Route path="/home"              element={<SessionProvider><AppRoutes /></SessionProvider>} />
+      <Route path="/mirror/*"          element={<SessionProvider><AppRoutes /></SessionProvider>} />
+      <Route path="/dna"               element={<SessionProvider><AppRoutes /></SessionProvider>} />
+      <Route path="/history"           element={<SessionProvider><AppRoutes /></SessionProvider>} />
+      <Route path="/activity"          element={<SessionProvider><AppRoutes /></SessionProvider>} />
+
+      {/* Catch-all → landing */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

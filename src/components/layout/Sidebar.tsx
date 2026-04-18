@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useSessionContext } from '../../context/SessionContext';
 
 const navItems = [
-  { path: '/',        label: 'Home',           abbr: '01' },
+  { path: '/home',    label: 'Home',           abbr: '01' },
   { path: '/mirror',  label: 'Last Session',    abbr: '02' },
   { path: '/dna',     label: 'Focus DNA',       abbr: '03' },
   { path: '/history', label: 'History',         abbr: '04' },
@@ -59,7 +59,7 @@ export default function Sidebar() {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (e.key === '?') setShowShortcuts(v => !v);
       if (e.key === 'Escape') setShowShortcuts(false);
-      if (e.key === '1') navigate('/');
+      if (e.key === '1') navigate('/home');
       if (e.key === '2') navigate('/mirror');
       if (e.key === '3') navigate('/dna');
       if (e.key === '4') navigate('/history');
@@ -95,7 +95,7 @@ export default function Sidebar() {
               <NavLink
                 key={item.path}
                 to={item.path}
-                end={item.path === '/'}
+                end={item.path === '/home'}
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-3 py-2.5 rounded text-sm transition-all duration-150 ${
                     isActive
