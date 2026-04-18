@@ -11,16 +11,29 @@
   let snoozeUntil = 0;
   let isShowingOverlay = false;
 
-  // Allowlist mode state (Feature A)
+  // Allowlist mode state
   let currentIsAllowlistMode = false;
   let currentAllowlistDomain = null;
 
-  // In blocklist mode: hard-blocked via blocked.html, banner shows immediately (0s)
-  // In allowlist mode: soft nudge after 10s away from allowed domain
-  const GUARDIAN_THRESHOLD_MS = 0;           // Immediate for blocklist (hard block is primary)
-  const ALLOWLIST_THRESHOLD_MS = 10 * 1000;  // 10s for allowlist mode
+  // Thresholds
+  const GUARDIAN_THRESHOLD_MS = 0;          // Immediate for blocklist
+  const ALLOWLIST_THRESHOLD_MS = 1 * 1000;  // 1s for allowlist mode
   const SNOOZE_DURATION_MS = 120 * 1000;
   const REENTRY_THRESHOLD = 3;
+
+  // ─── Stale DOM state guard ─────────────────────────────
+  // Called before any check to ensure JS state matches DOM reality.
+  // Fixes: banner removed by page JS but isShowingOverlay stuck true.
+  function syncDOMState() {
+    if (guardianBanner && !document.contains(guardianBanner)) {
+      guardianBanner = null;
+      isShowingOverlay = false;
+    }
+    if (reentryModal && !document.contains(reentryModal)) {
+      reentryModal = null;
+      isShowingOverlay = false;
+    }
+  }
 
   // ─── Message Handler ────────────────────────────────────
 
@@ -38,6 +51,8 @@
   // ─── Distraction Logic ──────────────────────────────────
 
   function handleDistraction({ domain, sessionGoal, distractionCount, isAllowlistMode, allowlistDomain }) {
+    syncDOMState(); // Fix stale state first
+
     currentIsAllowlistMode = isAllowlistMode || false;
     currentAllowlistDomain = allowlistDomain || null;
 
@@ -65,7 +80,7 @@
   // ─── Guardian Banner ────────────────────────────────────
 
   function showGuardianBanner(domain, elapsedMs, sessionGoal, isAllowlistMode, allowlistDomain) {
-    if (guardianBanner || isShowingOverlay) return;
+    if (isShowingOverlay) return;
     isShowingOverlay = true;
 
     const timeText = formatDuration(elapsedMs);
@@ -75,8 +90,8 @@
       : `You've been on <strong class="flowos-domain">${escapeHtml(domain)}</strong> for ${timeText}. Your session is waiting.`;
 
     const backButtonText = isAllowlistMode
-      ? `Back to ${escapeHtml(allowlistDomain)} 💪`
-      : "I'm back 💪";
+      ? `Back to ${escapeHtml(allowlistDomain)}`
+      : "I'm back";
 
     guardianBanner = document.createElement('div');
     guardianBanner.id = 'flowos-guardian-banner';
@@ -85,7 +100,6 @@
       <div class="flowos-banner-inner">
         <div class="flowos-banner-left">
           <span class="flowos-banner-pulse"></span>
-          <span class="flowos-banner-icon">${isAllowlistMode ? '🎯' : '⚡'}</span>
           <span class="flowos-banner-text">
             <strong>FlowOS</strong> — ${bannerMessage}
           </span>
@@ -132,7 +146,7 @@
   // ─── Re-entry Modal ─────────────────────────────────────
 
   function showReentryModal(goal) {
-    if (reentryModal || isShowingOverlay) return;
+    if (isShowingOverlay) return;
     isShowingOverlay = true;
 
     reentryModal = document.createElement('div');
@@ -203,13 +217,11 @@
     distractionStartTime = null;
 
     if (currentIsAllowlistMode && currentAllowlistDomain) {
-      // Navigate back to the allowed site (Feature A5)
       chrome.runtime.sendMessage({
         type: 'FOCUS_BACK_TO_ALLOWLIST',
         allowlistDomain: currentAllowlistDomain
       });
     } else {
-      // Bug #4 Fix: send message to background to switch tabs
       chrome.runtime.sendMessage({ type: 'FOCUS_BACK_TO_WORK' });
     }
   }
@@ -236,8 +248,17 @@
     isShowingOverlay = false;
   }
 
-  window.addEventListener('beforeunload', () => {
-    distractionStartTime = null;
+  // Fix: beforeunload does full cleanup (not just distractionStartTime)
+  // so isShowingOverlay is never stale on the next page.
+  window.addEventListener('beforeunload', cleanupAll);
+
+  // ─── Self-initialisation on page load ───────────────────
+  // Ask background: "Is this page currently a distraction?"
+  // This catches the case where the tab was already open before
+  // background.js could send DISTRACTION_DETECTED (timing race).
+  chrome.runtime.sendMessage({ type: 'REQUEST_DISTRACTION_STATE' }, (response) => {
+    if (chrome.runtime.lastError || !response?.isDistraction) return;
+    handleDistraction(response);
   });
 
   // ─── Utilities ──────────────────────────────────────────

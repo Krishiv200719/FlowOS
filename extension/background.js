@@ -12,7 +12,7 @@ const DISTRACTION_DOMAINS = [
   'twitch.tv', 'pinterest.com', 'tumblr.com'
 ];
 
-const IDLE_THRESHOLD_SECONDS = 30;
+const IDLE_THRESHOLD_SECONDS = 15; // Chrome API minimum — cannot go lower
 const ALARM_NAME = 'flowos-activity-tick';
 const ALARM_PERIOD_MINUTES = 1; // Bug #5 Fix: MV3 minimum is 1 minute
 
@@ -151,6 +151,46 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ success: true });
       return true;
 
+    // ── Content script asks on page load: "should I show a banner?" ──
+    case 'REQUEST_DISTRACTION_STATE':
+      chrome.storage.local.get(['sessionActive', 'currentSession', 'settings'], (data) => {
+        if (!data.sessionActive || !data.currentSession) {
+          sendResponse({ isDistraction: false });
+          return;
+        }
+        const session = data.currentSession;
+        const domains = (data.settings?.distractionDomains || DISTRACTION_DOMAINS);
+        const isAllowlistMode = session.mode === 'allowlist' && !!session.allowlistDomain;
+
+        // Determine the sender tab's domain
+        let senderDomain = '';
+        try { senderDomain = new URL(sender.url || '').hostname.replace(/^www\./, ''); } catch (_) {}
+
+        let isDistraction = false;
+        if (isAllowlistMode) {
+          // Allowlist: any site that is NOT the allowed domain is a distraction
+          const allowed = (session.allowlistDomain || '').toLowerCase();
+          isDistraction = !!senderDomain && !senderDomain.includes(allowed) && !allowed.includes(senderDomain);
+        } else {
+          // Blocklist: known distraction domains
+          isDistraction = domains.some(d => senderDomain.includes(d));
+        }
+
+        if (isDistraction) {
+          sendResponse({
+            isDistraction: true,
+            domain: senderDomain,
+            sessionGoal: session.goal,
+            isAllowlistMode,
+            allowlistDomain: session.allowlistDomain || null,
+            distractionCount: session.events.filter(e => e.type === 'distraction').length
+          });
+        } else {
+          sendResponse({ isDistraction: false });
+        }
+      });
+      return true;
+
     case 'SNOOZE_BLOCK':
       blockSnoozedUntil = Date.now() + ((message.minutes || 5) * 60 * 1000);
       console.log(`[FlowOS] Block snoozed for ${message.minutes || 5} min`);
@@ -253,6 +293,30 @@ async function getStatus() {
     isInChrome: chromeHasFocus,
     offChromeSince: chromeHasFocus ? null : Date.now(),
   };
+}
+
+// ─── Robust distraction message sender ──────────────────────
+// Retries up to MAX_ATTEMPTS with increasing delays.
+// On the first failure it also injects content.js + content.css
+// in case the content script hasn't initialised yet on this page.
+async function sendDistractionMessage(tabId, msg, attempt) {
+  const MAX_ATTEMPTS = 5;
+  const DELAYS = [200, 400, 600, 800, 1000]; // ms between retries
+
+  try {
+    await chrome.tabs.sendMessage(tabId, msg);
+  } catch (_) {
+    if (attempt === 0) {
+      // First failure: try to inject the content script dynamically
+      try {
+        await chrome.scripting.executeScript({ target: { tabId }, files: ['content.js'] });
+        await chrome.scripting.insertCSS({ target: { tabId }, files: ['content.css'] });
+      } catch (_) { /* page may not allow injection (chrome://, PDF, etc.) */ }
+    }
+    if (attempt < MAX_ATTEMPTS - 1) {
+      setTimeout(() => sendDistractionMessage(tabId, msg, attempt + 1), DELAYS[attempt]);
+    }
+  }
 }
 
 // ─── Activity Recording ─────────────────────────────────────
@@ -369,7 +433,7 @@ async function recordActivity() {
     session.events.push({ timestamp: now, type: eventType, domain, duration: 0 });
   }
 
-  // 8. Distraction overlay — send to the distraction tab itself
+  // 8. Distraction overlay — send to the distraction tab, with multi-attempt retry
   if (isDistraction && idleState === 'active') {
     const msg = {
       type: 'DISTRACTION_DETECTED',
@@ -379,21 +443,7 @@ async function recordActivity() {
       isAllowlistMode,
       distractionCount: session.events.filter(e => e.type === 'distraction').length
     };
-    try {
-      await chrome.tabs.sendMessage(activeTab.id, msg);
-    } catch (_) {
-      // Content script not ready yet — inject it dynamically
-      try {
-        await chrome.scripting.executeScript({
-          target: { tabId: activeTab.id },
-          files: ['content.js']
-        });
-        // Brief wait for script to initialize, then retry
-        setTimeout(async () => {
-          try { await chrome.tabs.sendMessage(activeTab.id, msg); } catch (_) {}
-        }, 200);
-      } catch (_) {}
-    }
+    sendDistractionMessage(activeTab.id, msg, 0);
   }
 
   // 9. Auto-end safety valve
@@ -535,14 +585,25 @@ chrome.tabs.onActivated.addListener(async () => {
 });
 
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  // Fire on URL change (early — for blocking) AND on page load complete (content script ready)
   if (changeInfo.url) {
-    // ─ Site Blocker: intercept distraction navigation ─────
     await checkAndBlockTab(tabId, changeInfo.url);
-
+  }
+  if (changeInfo.url || changeInfo.status === 'complete') {
     const data = await chrome.storage.local.get(['sessionActive']);
     if (data.sessionActive) recordActivity();
     recordAmbientActivity();
   }
+});
+
+// Catch ALL navigation types: back/forward, redirects, new-tab navigations
+// webNavigation.onCommitted fires after the navigate is committed
+// (earlier than onCompleted but content script injection starts here)
+chrome.webNavigation.onCompleted.addListener(async (details) => {
+  if (details.frameId !== 0) return; // main frame only
+  if (!details.url || details.url.startsWith('chrome')) return;
+  const data = await chrome.storage.local.get(['sessionActive']);
+  if (data.sessionActive) recordActivity();
 });
 
 // ─── Site Blocker ───────────────────────────────────────────
