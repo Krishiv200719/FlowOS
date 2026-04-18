@@ -8,13 +8,13 @@ import Mirror from './screens/Mirror';
 import DNA from './screens/DNA';
 import History from './screens/History';
 import Activity from './screens/Activity';
+import Landing from './landing/Landing';
 
 function AppRoutes() {
   const { sessions } = useSessionContext();
   const navigate = useNavigate();
   const prevLengthRef = useRef(sessions.length);
 
-  // Auto-navigate to Mirror when a new session appears
   useEffect(() => {
     if (sessions.length > prevLengthRef.current && sessions[0]) {
       navigate(`/mirror/${sessions[0].id}`);
@@ -26,13 +26,13 @@ function AppRoutes() {
     <AppShell>
       <AnimatePresence mode="wait">
         <Routes>
-          <Route path="/" element={<Home key="home" />} />
-          <Route path="/mirror" element={<Mirror key="mirror" />} />
+          <Route path="/"                  element={<Home key="home" />} />
+          <Route path="/mirror"            element={<Mirror key="mirror" />} />
           <Route path="/mirror/:sessionId" element={<Mirror key="mirror-detail" />} />
-          <Route path="/dna" element={<DNA key="dna" />} />
-          <Route path="/history" element={<History key="history" />} />
-          <Route path="/activity" element={<Activity key="activity" />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="/dna"               element={<DNA key="dna" />} />
+          <Route path="/history"           element={<History key="history" />} />
+          <Route path="/activity"          element={<Activity key="activity" />} />
+          <Route path="*"                  element={<Navigate to="/" replace />} />
         </Routes>
       </AnimatePresence>
     </AppShell>
@@ -41,8 +41,15 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <SessionProvider>
-      <AppRoutes />
-    </SessionProvider>
+    <Routes>
+      {/* Landing — fully standalone, no sidebar, no sessions */}
+      <Route path="/landing" element={<Landing />} />
+      {/* Main dashboard */}
+      <Route path="/*" element={
+        <SessionProvider>
+          <AppRoutes />
+        </SessionProvider>
+      } />
+    </Routes>
   );
 }
