@@ -169,6 +169,7 @@ export default function Landing() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
             <a href="#how" style={{ fontFamily: F.sans, fontSize: 13, color: C.muted, textDecoration: 'none' }}>How it works</a>
             <a href="#features" style={{ fontFamily: F.sans, fontSize: 13, color: C.muted, textDecoration: 'none' }}>Features</a>
+            <a href="#pricing" style={{ fontFamily: F.sans, fontSize: 13, color: C.muted, textDecoration: 'none' }}>Pricing</a>
             <a href="/home" style={{ fontFamily: F.sans, fontSize: 13, color: C.muted, textDecoration: 'none' }}>Dashboard</a>
             <a
               href={ghUrl}
@@ -538,6 +539,139 @@ export default function Landing() {
           ))}
         </div>
       </section>
+
+
+      {/* ── Pricing ──────────────────────────────────── */}
+      <section id="pricing" style={{ padding: '120px 40px', maxWidth: 1080, margin: '0 auto' }}>
+        <Reveal>
+          <div style={{ marginBottom: 64 }}>
+            <Tag color={C.muted}>Pricing Tiers</Tag>
+            <h2 style={{ fontFamily: F.display, fontSize: 'clamp(32px, 4vw, 52px)', color: C.white, margin: '20px 0 0', fontWeight: 400, lineHeight: 1.1 }}>
+              Start free.<br />
+              <em style={{ color: C.muted, fontStyle: 'italic' }}>Scale when it matters.</em>
+            </h2>
+          </div>
+        </Reveal>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 0 }}>
+
+          {/* Free */}
+          <Reveal delay={0}>
+            <div style={{
+              border: `1px solid ${C.line}`,
+              borderRight: 'none',
+              padding: '40px 36px',
+              height: '100%',
+              boxSizing: 'border-box',
+            }}>
+              <div style={{ fontFamily: F.display, fontSize: 26, color: C.text, marginBottom: 12, fontWeight: 400 }}>Free</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 6 }}>
+                <span style={{ fontFamily: F.display, fontSize: 44, color: C.white, lineHeight: 1 }}>₹0</span>
+                <span style={{ fontFamily: F.sans, fontSize: 13, color: C.muted }}> / forever</span>
+              </div>
+              <div style={{ fontFamily: F.sans, fontSize: 13, color: C.muted, lineHeight: 1.7, marginBottom: 36 }}>
+                Hook users with the core truth. Make them addicted to their own data.
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {[
+                  ['Focus Score', '— daily'],
+                  ['Session Mirror', '— last 7 days'],
+                  ['Live focus meter', 'in extension'],
+                  ['Tab tracker', '— basic'],
+                  ['Community support', ''],
+                ].map(([bold, rest]) => (
+                  <div key={bold} style={{ fontFamily: F.sans, fontSize: 13, color: C.muted, lineHeight: 1.4 }}>
+                    <strong style={{ color: C.text, fontWeight: 600 }}>{bold}</strong>{rest ? ' ' + rest : ''}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Reveal>
+
+          {/* Pro — highlighted */}
+          <Reveal delay={0.08}>
+            <div style={{
+              border: `1px solid ${C.accent}`,
+              padding: '40px 36px',
+              height: '100%',
+              boxSizing: 'border-box',
+              position: 'relative',
+              background: `${C.accent}06`,
+            }}>
+              {/* Most popular badge */}
+              <div style={{
+                position: 'absolute', top: 20, left: 36,
+                fontFamily: F.sans, fontSize: 11, fontWeight: 600,
+                color: C.bg, background: C.accent,
+                padding: '4px 12px', borderRadius: 100,
+                letterSpacing: '0.04em',
+              }}>
+                Most popular
+              </div>
+              <div style={{ fontFamily: F.display, fontSize: 26, color: C.text, marginBottom: 12, fontWeight: 400, marginTop: 32 }}>Pro</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
+                <span style={{ fontFamily: F.display, fontSize: 44, color: C.white, lineHeight: 1 }}>₹299</span>
+                <span style={{ fontFamily: F.sans, fontSize: 13, color: C.muted }}> / month</span>
+              </div>
+              <div style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, marginBottom: 12, letterSpacing: '0.08em' }}>₹2,499 / yr</div>
+              <div style={{ fontFamily: F.sans, fontSize: 13, color: C.muted, lineHeight: 1.7, marginBottom: 36 }}>
+                The full mirror. Where real money comes from.
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {[
+                  ['Focus DNA', 'heatmap — full 90 days'],
+                  ['AI Coach', '— unlimited insights'],
+                  ['True Cost', 'per distraction'],
+                  ['Unlimited', 'session history'],
+                  ['Weekly report', 'PDF export'],
+                  ['Goal tracking', '+ streaks'],
+                ].map(([bold, rest]) => (
+                  <div key={bold} style={{ fontFamily: F.sans, fontSize: 13, color: C.muted, lineHeight: 1.4 }}>
+                    <strong style={{ color: C.text, fontWeight: 600 }}>{bold}</strong>{rest ? ' ' + rest : ''}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Reveal>
+
+          {/* Teams */}
+          <Reveal delay={0.16}>
+            <div style={{
+              border: `1px solid ${C.line}`,
+              borderLeft: 'none',
+              padding: '40px 36px',
+              height: '100%',
+              boxSizing: 'border-box',
+            }}>
+              <div style={{ fontFamily: F.display, fontSize: 26, color: C.text, marginBottom: 12, fontWeight: 400 }}>Teams</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 6 }}>
+                <span style={{ fontFamily: F.display, fontSize: 44, color: C.white, lineHeight: 1 }}>₹199</span>
+                <span style={{ fontFamily: F.sans, fontSize: 13, color: C.muted }}> / seat / month</span>
+              </div>
+              <div style={{ fontFamily: F.sans, fontSize: 13, color: C.muted, lineHeight: 1.7, marginBottom: 36 }}>
+                Sell to companies. One manager buys for 10 people. This is where real revenue scales.
+              </div>
+              <div style={{ fontFamily: F.sans, fontSize: 12, color: C.muted, marginBottom: 20, fontStyle: 'italic' }}>Everything in Pro</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {[
+                  ['Manager dashboard', '— team focus scores'],
+                  ['Anonymized', 'team heatmap'],
+                  ['Slack/Notion', 'integrations'],
+                  ['Priority', 'support + onboarding'],
+                  ['Min 5 seats', ''],
+                ].map(([bold, rest]) => (
+                  <div key={bold} style={{ fontFamily: F.sans, fontSize: 13, color: C.muted, lineHeight: 1.4 }}>
+                    <strong style={{ color: C.text, fontWeight: 600 }}>{bold}</strong>{rest ? ' ' + rest : ''}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Reveal>
+
+        </div>
+      </section>
+
+      <Divider />
 
       {/* ── CTA ─────────────────────────────────────── */}
       <section style={{ padding: '140px 40px', maxWidth: 1080, margin: '0 auto', textAlign: 'center' }}>
