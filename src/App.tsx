@@ -10,7 +10,8 @@ import History from './screens/History';
 import Activity from './screens/Activity';
 import Landing from './landing/Landing';
 
-function AppRoutes() {
+// Wraps every dashboard screen: adds sidebar, animations, and session auto-redirect
+function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { sessions } = useSessionContext();
   const navigate = useNavigate();
   const prevLengthRef = useRef(sessions.length);
@@ -25,16 +26,7 @@ function AppRoutes() {
   return (
     <AppShell>
       <AnimatePresence mode="wait">
-        <Routes>
-          <Route path="/home"              element={<Home key="home" />} />
-          <Route path="/mirror"            element={<Mirror key="mirror" />} />
-          <Route path="/mirror/:sessionId" element={<Mirror key="mirror-detail" />} />
-          <Route path="/dna"               element={<DNA key="dna" />} />
-          <Route path="/history"           element={<History key="history" />} />
-          <Route path="/activity"          element={<Activity key="activity" />} />
-          {/* Any unknown path in app → home */}
-          <Route path="*"                  element={<Navigate to="/home" replace />} />
-        </Routes>
+        {children}
       </AnimatePresence>
     </AppShell>
   );
@@ -42,19 +34,23 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <Routes>
-      {/* Landing page at root — first thing visitors see */}
-      <Route path="/" element={<Landing />} />
+    // SessionProvider wraps everything — lightweight, no harm on landing page
+    <SessionProvider>
+      <Routes>
+        {/* Landing — root exact match, never matches /home or /mirror etc */}
+        <Route path="/" element={<Landing />} />
 
-      {/* Dashboard — wrapped in SessionProvider */}
-      <Route path="/home"              element={<SessionProvider><AppRoutes /></SessionProvider>} />
-      <Route path="/mirror/*"          element={<SessionProvider><AppRoutes /></SessionProvider>} />
-      <Route path="/dna"               element={<SessionProvider><AppRoutes /></SessionProvider>} />
-      <Route path="/history"           element={<SessionProvider><AppRoutes /></SessionProvider>} />
-      <Route path="/activity"          element={<SessionProvider><AppRoutes /></SessionProvider>} />
+        {/* Dashboard screens — each route renders DashboardLayout + its screen */}
+        <Route path="/home"              element={<DashboardLayout><Home key="home" /></DashboardLayout>} />
+        <Route path="/mirror"            element={<DashboardLayout><Mirror key="mirror" /></DashboardLayout>} />
+        <Route path="/mirror/:sessionId" element={<DashboardLayout><Mirror key="mirror-detail" /></DashboardLayout>} />
+        <Route path="/dna"               element={<DashboardLayout><DNA key="dna" /></DashboardLayout>} />
+        <Route path="/history"           element={<DashboardLayout><History key="history" /></DashboardLayout>} />
+        <Route path="/activity"          element={<DashboardLayout><Activity key="activity" /></DashboardLayout>} />
 
-      {/* Catch-all → landing */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        {/* Anything else → landing */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </SessionProvider>
   );
 }
